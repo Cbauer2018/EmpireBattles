@@ -307,16 +307,35 @@ public class Main extends JavaPlugin implements Listener {
         final Block block = e.getBlock(); // Gets block data. (The block broken.)
         final ItemStack iron = new ItemStack(Material.IRON_INGOT);
         final ItemStack gold = new ItemStack(Material.GOLD_INGOT);
+        final ItemStack netherite = new ItemStack(Material.NETHERITE_INGOT);
+        final ItemStack diamond = new ItemStack(Material.DIAMOND);
         if (block.getType() == Material.IRON_ORE) { // Checks if the block broken is Iron Ore.
             block.setType(Material.AIR); // If true, replaces Iron Ore with Air block. (Removes block.)
             inv.addItem(iron); // Adds iron bar to player's inventory.
+            Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.IRON_ORE), 100);
             //inv.addItem(new ItemStack[] { iron }); // Adds iron bar to player's inventory.
             return;
         }
         if (block.getType() == Material.GOLD_ORE) { // Checks if the block broken is Gold Ore.
             block.setType(Material.AIR); // If true, replaces Gold Ore block with Air block. (Removes block.)
             inv.addItem(gold);
+            Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.GOLD_ORE), 100);
+            return;
         }
+        if (block.getType() == Material.ANCIENT_DEBRIS) { // Checks if the block broken is Iron Ore.
+            block.setType(Material.AIR); // If true, replaces Iron Ore with Air block. (Removes block.)
+            inv.addItem(netherite); // Adds iron bar to player's inventory.
+            Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.ANCIENT_DEBRIS), 100);
+            //inv.addItem(new ItemStack[] { iron }); // Adds iron bar to player's inventory.
+            return;
+        }
+            if (block.getType() == Material.DIAMOND_ORE) { // Checks if the block broken is Gold Ore.
+                block.setType(Material.AIR); // If true, replaces Gold Ore block with Air block. (Removes block.)
+                inv.addItem(diamond);
+                Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.DIAMOND_ORE), 100);
+                return;
+            }
+
     }
 
 
