@@ -26,7 +26,7 @@ public class Towns implements CommandExecutor {
         this.plugin = plugin;
 
     }
-
+ //Test Comment.
     public void townCaptured(Player player,String town){
         this.empiredata = new EmpireDataManager( plugin);
         this.towndata = new TownDataManager(plugin);
