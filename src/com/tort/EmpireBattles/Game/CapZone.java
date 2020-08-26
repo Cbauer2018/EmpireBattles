@@ -223,6 +223,7 @@ public class CapZone  {
                             Main.CaptureOwners.put(town, "VIKINGS");
                         }
                     } else {
+                        
                         bar.setColor(BarColor.BLUE);
                         bar.setTitle(ChatColor.DARK_PURPLE + "VIKINGS " + ChatColor.DARK_AQUA + "ARE CAPTURING " + town );
                         progressX = 0;
