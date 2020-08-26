@@ -1,0 +1,38 @@
+name: EmpireBattles
+version: 1.0.0
+author: Tort
+main: com.tort.EmpireBattles.Main
+api-version: 1.14
+commands:
+  setsector:
+    description: Creates a sector
+    usage: /<command>
+    aliases:  setSector
+  delSector:
+    description: Delete a sector.
+    usage: /<command>
+  empire:
+    description: Used for empire commands
+    usage: /<command>
+  setspawn:
+    description: Used to set empire spawn.
+    usage: /<command>
+
+  spawn:
+    description: Used to teleport to spawn.
+    usage: /<command>
+  town:
+    description: town commands
+    usage: /<command>
+
+  capturetool:
+    description: Get capture tool.
+    usage: /<command>
+
+  start:
+    description: Start game.
+    usage: /<command>
+
+  caplist:
+    description: Get list of Capture zones
+    usage: /<command>
