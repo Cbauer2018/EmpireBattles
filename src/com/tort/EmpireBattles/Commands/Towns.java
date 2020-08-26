@@ -48,9 +48,6 @@ public class Towns implements CommandExecutor {
         empiredata.saveConfig();
 
 
-
-
-
     }
 
 

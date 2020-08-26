@@ -22,12 +22,15 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.*;
 import org.bukkit.util.Vector;
@@ -353,6 +356,45 @@ public class Main extends JavaPlugin implements Listener {
             }        }
 
             return true;
+    }
+
+    // Added 8/25/2020 - Replaces Iron/Gold Blocks with Air -> Inputs Ingot into player inventory.
+        @EventHandler
+        public void onBreak(final BlockBreakEvent e) { // Initiates upon block break event.
+        final Player p = e.getPlayer(); // Gets player in order to get player inventory.
+        final Inventory inv = (Inventory)p.getInventory();
+        final Block block = e.getBlock(); // Gets block data. (The block broken.)
+        final ItemStack iron = new ItemStack(Material.IRON_INGOT);
+        final ItemStack gold = new ItemStack(Material.GOLD_INGOT);
+        final ItemStack netherite = new ItemStack(Material.NETHERITE_INGOT);
+        final ItemStack diamond = new ItemStack(Material.DIAMOND);
+        if (block.getType() == Material.IRON_ORE) { // Checks if the block broken is Iron Ore.
+            block.setType(Material.AIR); // If true, replaces Iron Ore with Air block. (Removes block.)
+            inv.addItem(iron); // Adds iron bar to player's inventory.
+            Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.IRON_ORE), 100);
+            //inv.addItem(new ItemStack[] { iron }); // Adds iron bar to player's inventory.
+            return;
+        }
+        if (block.getType() == Material.GOLD_ORE) { // Checks if the block broken is Gold Ore.
+            block.setType(Material.AIR); // If true, replaces Gold Ore block with Air block. (Removes block.)
+            inv.addItem(gold);
+            Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.GOLD_ORE), 100);
+            return;
+        }
+        if (block.getType() == Material.ANCIENT_DEBRIS) { // Checks if the block broken is Iron Ore.
+            block.setType(Material.AIR); // If true, replaces Iron Ore with Air block. (Removes block.)
+            inv.addItem(netherite); // Adds iron bar to player's inventory.
+            Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.ANCIENT_DEBRIS), 100);
+            //inv.addItem(new ItemStack[] { iron }); // Adds iron bar to player's inventory.
+            return;
+        }
+            if (block.getType() == Material.DIAMOND_ORE) { // Checks if the block broken is Gold Ore.
+                block.setType(Material.AIR); // If true, replaces Gold Ore block with Air block. (Removes block.)
+                inv.addItem(diamond);
+                Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.DIAMOND_ORE), 100);
+                return;
+            }
+
     }
 
 
