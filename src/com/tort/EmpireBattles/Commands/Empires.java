@@ -115,13 +115,13 @@ public class Empires implements CommandExecutor {
                     player.getInventory().setHelmet(armor[3]);
                     player.updateInventory();
 
-                    Double X = Double.parseDouble(empiredata.getConfig().get(team.getName() + ".spawnpoint" + ".X").toString());
-                    Double Y = Double.parseDouble(empiredata.getConfig().get(team.getName() + ".spawnpoint" + ".Y").toString());
-                    Double Z = Double.parseDouble(empiredata.getConfig().get(team.getName() + ".spawnpoint" + ".Z").toString());
-                    Float yaw = Float.valueOf(empiredata.getConfig().get(team.getName()+ ".spawnpoint" + ".yaw").toString());
-                    Float pitch = Float.valueOf(empiredata.getConfig().get(team.getName() + ".spawnpoint" + ".pitch").toString());
+//                    Double X = Double.parseDouble(empiredata.getConfig().get(team.getName() + ".spawnpoint" + ".X").toString());
+//                    Double Y = Double.parseDouble(empiredata.getConfig().get(team.getName() + ".spawnpoint" + ".Y").toString());
+//                    Double Z = Double.parseDouble(empiredata.getConfig().get(team.getName() + ".spawnpoint" + ".Z").toString());
+//                    Float yaw = Float.valueOf(empiredata.getConfig().get(team.getName()+ ".spawnpoint" + ".yaw").toString());
+//                    Float pitch = Float.valueOf(empiredata.getConfig().get(team.getName() + ".spawnpoint" + ".pitch").toString());
 
-                    Location location = new Location(player.getWorld(),X,Y,Z,yaw,pitch);
+                    Location location = Main.EmpireSpawns.get(team.getName());
                     player.teleport(location);
 
 

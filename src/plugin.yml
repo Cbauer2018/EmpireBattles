@@ -36,3 +36,6 @@ commands:
   caplist:
     description: Get list of Capture zones
     usage: /<command>
+  warp:
+    description: Sends Player to town spawn
+    usage: /<command>

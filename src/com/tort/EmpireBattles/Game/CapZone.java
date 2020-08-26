@@ -1,20 +1,16 @@
 package com.tort.EmpireBattles.Game;
 
 import com.tort.EmpireBattles.Main;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
+import org.bukkit.*;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.event.world.StructureGrowEvent;
+import org.bukkit.inventory.meta.FireworkMeta;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -127,7 +123,8 @@ public class CapZone  {
                         bar.setProgress(progress);
                         if (progressX == 15) {
                             zoneOwner = "OTTOMANS";
-                            Main.CaptureOwners.put(town, "OTTOMANS");
+                            spawnFireworks(capLocation, Color.YELLOW);
+                            Main.CaptureOwners.put(town.toUpperCase(), "OTTOMANS");
                         }
                     } else {
                         bar.setColor(BarColor.BLUE);
@@ -159,7 +156,8 @@ public class CapZone  {
                         bar.setProgress(progress);
                         if (progressX == -15) {
                             zoneOwner = "MONGOLS";
-                            Main.CaptureOwners.put(town, "MONGOLS");
+                            spawnFireworks(capLocation, Color.BLUE);
+                            Main.CaptureOwners.put(town.toUpperCase(), "MONGOLS");
                         }
                     } else {
                         bar.setColor(BarColor.BLUE);
@@ -189,7 +187,8 @@ public class CapZone  {
                         bar.setProgress(progress);
                         if (progressY == 15) {
                             zoneOwner = "ROMANS";
-                            Main.CaptureOwners.put(town, "ROMANS");
+                            spawnFireworks(capLocation, Color.RED);
+                            Main.CaptureOwners.put(town.toUpperCase(), "ROMANS");
                         }
                     } else {
                         bar.setColor(BarColor.BLUE);
@@ -220,7 +219,8 @@ public class CapZone  {
                         bar.setProgress(progress);
                         if (progressY == -15) {
                             zoneOwner = "VIKINGS";
-                            Main.CaptureOwners.put(town, "VIKINGS");
+                            spawnFireworks(capLocation, Color.PURPLE);
+                            Main.CaptureOwners.put(town.toUpperCase(), "VIKINGS");
                         }
                     } else {
 
@@ -274,4 +274,19 @@ public class CapZone  {
 
         return pls;
     }
-}
+
+    private void spawnFireworks(Location location, Color color) {
+        Location loc = location;
+        Firework fw = (Firework) loc.getWorld().spawnEntity(loc, EntityType.FIREWORK);
+        FireworkMeta fwm = fw.getFireworkMeta();
+
+        fwm.setPower(5);
+        fwm.addEffect(FireworkEffect.builder().withColor(color).flicker(true).build());
+
+        fw.setFireworkMeta(fwm);
+        fw.detonate();
+
+
+    }
+
+    }

@@ -4,6 +4,7 @@ import com.tort.EmpireBattles.Commands.Empires;
 
 import com.tort.EmpireBattles.Commands.Towns;
 import com.tort.EmpireBattles.Events.PlayerJoinEvents;
+import com.tort.EmpireBattles.Events.PlayerRespawnEvents;
 import com.tort.EmpireBattles.Files.EmpireDataManager;
 import com.tort.EmpireBattles.Files.PlayerDataManager;
 
@@ -29,6 +30,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.*;
+import org.bukkit.util.Vector;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,7 +51,9 @@ public class Main extends JavaPlugin implements Listener {
     public static Map<String,String> playerTeams = new ConcurrentHashMap<String,String>();
     public static Map<String, Location> CaptureZones = new HashMap<String,Location>();
     public static Map<String, String> CaptureOwners = new HashMap<String,String>();
-    public static Map<String, ArmorStand> armorStands = new HashMap<String, ArmorStand>();
+    public Map<String, Location> TownSpawns = new HashMap<String, Location>();
+    public static Map<String, Location> EmpireSpawns = new HashMap<String, Location>();
+    public Map<String,Long> cooldowns = new HashMap<String,Long>();
 
 
 
@@ -58,6 +62,7 @@ public class Main extends JavaPlugin implements Listener {
     public void onEnable() {
         //Register Events
         getServer().getPluginManager().registerEvents(new PlayerJoinEvents(), this);
+        getServer().getPluginManager().registerEvents(new PlayerRespawnEvents(this),this);
         this.getServer().getPluginManager().registerEvents(this,this);
         this.saveDefaultConfig(); // create conf.yml
 
@@ -116,10 +121,19 @@ public class Main extends JavaPlugin implements Listener {
             double X = entry.getValue().getX();
             double Y = entry.getValue().getY();
             double Z = entry.getValue().getZ();
-            this.getConfig().set("Zones." + entry.getKey() + ".X", X );
-            this.getConfig().set("Zones." + entry.getKey() + ".Y", Y );
-            this.getConfig().set("Zones." + entry.getKey() + ".Z", Z );
-            this.getConfig().set("Zones." + entry.getKey() + ".zoneowner", CaptureOwners.get(entry.getKey()));
+            this.getConfig().set("Zones." + entry.getKey().toUpperCase() + ".X", X );
+            this.getConfig().set("Zones." + entry.getKey().toUpperCase() + ".Y", Y );
+            this.getConfig().set("Zones." + entry.getKey().toUpperCase() + ".Z", Z );
+            this.getConfig().set("Zones." + entry.getKey().toUpperCase() + ".zoneowner", CaptureOwners.get(entry.getKey()));
+        }
+
+        for(Map.Entry<String,Location> entry: TownSpawns.entrySet()){
+            double X = entry.getValue().getX();
+            double Y = entry.getValue().getY();
+            double Z = entry.getValue().getZ();
+            this.getConfig().set("Zones." + entry.getKey().toUpperCase() + ".spawn" + ".X", X );
+            this.getConfig().set("Zones." + entry.getKey().toUpperCase() + ".spawn" + ".Y", Y );
+            this.getConfig().set("Zones." + entry.getKey().toUpperCase() + ".spawn" + ".Z", Z );
         }
 
         this.saveConfig();
@@ -135,13 +149,32 @@ public class Main extends JavaPlugin implements Listener {
             double Y =  this.getConfig().getDouble("Zones." + zone + ".Y" );
             double Z =  this.getConfig().getDouble("Zones." + zone + ".Z" );
             String zoneowner = this.getConfig().getString("Zones." + zone + ".zoneowner");
+            double spawnX = this.getConfig().getDouble("Zones." + zone + ".spawn" + ".X");
+            double spawnY = this.getConfig().getDouble("Zones." + zone + ".spawn" + ".Y");
+            double spawnZ= this.getConfig().getDouble("Zones." + zone + ".spawn" + ".Z");
+
 
             Location capLocation = new Location(Bukkit.getServer().getWorld("world"),X,Y,Z);
             CaptureZones.put(zone,capLocation);
             getLogger().log(Level.INFO, "Put " + zone);
             CaptureOwners.put(zone,zoneowner);
+
+            Location spawnLocation = new Location(Bukkit.getServer().getWorld("world"),spawnX,spawnY,spawnZ);
+            TownSpawns.put(zone, spawnLocation);
         }
 
+        Collection<String> Empires = this.empiredata.getConfig().getKeys(false);
+            for(String empire: Empires){
+                Double X = empiredata.getConfig().getDouble(empire + ".spawnpoint" + ".X");
+                Double Y = empiredata.getConfig().getDouble(empire + ".spawnpoint" + ".Y");
+                Double Z = empiredata.getConfig().getDouble(empire + ".spawnpoint" + ".Z");
+                Float yaw = Float.valueOf(empiredata.getConfig().getString(empire + ".spawnpoint" + ".yaw"));
+                Float pitch = Float.valueOf(empiredata.getConfig().getString(empire + ".spawnpoint" + ".pitch"));
+
+                Location location = new Location(Bukkit.getServer().getWorld("world"),X,Y,Z,yaw,pitch);
+                EmpireSpawns.put(empire,location);
+
+            }
     }
 
      public static String getTeam(String playerID){ //get playerID from hashmap
@@ -237,7 +270,7 @@ public class Main extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerSay(AsyncPlayerChatEvent event){
-        event.getPlayer().sendMessage(getTeam(event.getPlayer().getUniqueId().toString()));
+
         if(playerdata.getConfig().get("players."+ event.getPlayer().getUniqueId().toString() + ".empire").equals("MONGOLS")){
             event.setFormat(ChatColor.GRAY + "[" + ChatColor.DARK_BLUE + "MONGOL" + ChatColor.GRAY + "] " + ChatColor.WHITE + event.getPlayer().getDisplayName() + ": "+ event.getMessage());
         }
@@ -265,14 +298,40 @@ public class Main extends JavaPlugin implements Listener {
         if(command.getName().equalsIgnoreCase("capturetool")){
                 player.getInventory().addItem(CaptureTool.CaptureTool);
         }
+
+        if(command.getName().equalsIgnoreCase("warp")){
+            if(TownSpawns.containsKey(strings[0].toUpperCase())){
+                if(Objects.equals(getTeam(player.getUniqueId().toString()),CaptureOwners.get(strings[0].toUpperCase()))) {
+                    Random random = new Random();
+                    double rand = random.nextInt(6);
+                    Location loca = TownSpawns.get(strings[0].toUpperCase());
+                    Location locb = new Location(loca.getWorld(), loca.getX(), loca.getY(), loca.getZ());
+                    locb.add(rand, 0, rand);
+                    player.sendMessage(ChatColor.GOLD + "Teleporting to " + strings[0] + " in 5 seconds.");
+                    Bukkit.getScheduler().runTaskLater(this, () -> player.teleport(locb.add(rand, 0, rand)), 5 * 20);
+
+                }else{
+                    player.sendMessage(ChatColor.RED + " Your team does not own this town.");
+                }
+            }else{
+                player.sendMessage(ChatColor.RED + " Invalid town name.");
+            }
+
+
+
+        }
+
         //Town COMMANDS
         if(command.getName().equalsIgnoreCase("town")){
             if(strings[1].equals("setCapture")){
-                CaptureZones.put(strings[0], player.getLocation().add(0,3,0));
-                CaptureOwners.put(strings[0], "NEUTRAL");
+                CaptureZones.put(strings[0].toUpperCase(), player.getLocation().add(0,3,0));
+                CaptureOwners.put(strings[0].toUpperCase(), "NEUTRAL");
                 player.sendMessage(ChatColor.BLUE + "Capture Zone for " + strings[0] + " created!");
             }
-
+            if(strings[1].equals("setSpawn")){
+                TownSpawns.put(strings[0].toUpperCase(), player.getLocation());
+                player.sendMessage(ChatColor.BLUE + "Town Spawn for " + strings[0] + " is set!");
+            }
 
         }
 
