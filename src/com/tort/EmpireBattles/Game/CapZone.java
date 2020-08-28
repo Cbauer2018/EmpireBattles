@@ -276,7 +276,8 @@ public class CapZone  {
     }
 
     private void spawnFireworks(Location location, Color color) {
-        Location loc = location;
+        Location loc = new Location(location.getWorld(), location.getX(), location.getY(), location.getZ());
+        loc.add(0, 6, 0);
         Firework fw = (Firework) loc.getWorld().spawnEntity(loc, EntityType.FIREWORK);
         FireworkMeta fwm = fw.getFireworkMeta();
 

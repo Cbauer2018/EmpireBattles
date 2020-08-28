@@ -53,9 +53,12 @@ public class Main extends JavaPlugin implements Listener {
 
     public static Map<String,String> playerTeams = new ConcurrentHashMap<String,String>();
     public static Map<String, Location> CaptureZones = new HashMap<String,Location>();
+    public static Map<String, Location> EmpireZones = new HashMap<String,Location>();
     public static Map<String, String> CaptureOwners = new HashMap<String,String>();
-    public Map<String, Location> TownSpawns = new HashMap<String, Location>();
     public static Map<String, Location> EmpireSpawns = new HashMap<String, Location>();
+    public static Map<String, Boolean> EmpireStatus = new HashMap<String, Boolean>();
+
+    public Map<String, Location> TownSpawns = new HashMap<String, Location>();
     public Map<String,Long> cooldowns = new HashMap<String,Long>();
 
 
@@ -96,9 +99,7 @@ public class Main extends JavaPlugin implements Listener {
         CaptureTool.init();
 
         //Restore Hashmaps
-            if(this.getConfig().contains("Zones")){
-                this.restoreCbs();
-            }
+        this.restoreCbs();
 
 
 
@@ -139,6 +140,18 @@ public class Main extends JavaPlugin implements Listener {
             this.getConfig().set("Zones." + entry.getKey().toUpperCase() + ".spawn" + ".Z", Z );
         }
 
+        for(Map.Entry<String,Location> entry: EmpireZones.entrySet()){
+            double X = entry.getValue().getX();
+            double Y = entry.getValue().getY();
+            double Z = entry.getValue().getZ();
+            this.empiredata.getConfig().set(entry.getKey().toUpperCase() + ".capture"+".X", X );
+            this.empiredata.getConfig().set( entry.getKey().toUpperCase() + ".capture"+ ".Y", Y );
+            this.empiredata.getConfig().set( entry.getKey().toUpperCase() + ".capture"+ ".Z", Z );
+            this.empiredata.getConfig().set(entry.getKey().toUpperCase() + ".status", EmpireStatus.get(entry.getKey()) );
+            this.empiredata.saveConfig();
+
+        }
+
         this.saveConfig();
     }
 
@@ -146,7 +159,6 @@ public class Main extends JavaPlugin implements Listener {
     public void restoreCbs(){
 
         Collection<String> zones = this.getConfig().getConfigurationSection("Zones.").getKeys(false);
-
         for(String zone : zones){
             double X =  this.getConfig().getDouble("Zones." + zone + ".X" );
             double Y =  this.getConfig().getDouble("Zones." + zone + ".Y" );
@@ -173,9 +185,16 @@ public class Main extends JavaPlugin implements Listener {
                 Double Z = empiredata.getConfig().getDouble(empire + ".spawnpoint" + ".Z");
                 Float yaw = Float.valueOf(empiredata.getConfig().getString(empire + ".spawnpoint" + ".yaw"));
                 Float pitch = Float.valueOf(empiredata.getConfig().getString(empire + ".spawnpoint" + ".pitch"));
+                double capX =  this.empiredata.getConfig().getDouble(empire+ ".capture"+".X");
+                double capY = this.empiredata.getConfig().getDouble(empire+ ".capture"+".Y");
+                double capZ = this.empiredata.getConfig().getDouble(empire+ ".capture"+".Z");
+                Boolean status = this.empiredata.getConfig().getBoolean(empire + ".status");
 
                 Location location = new Location(Bukkit.getServer().getWorld("world"),X,Y,Z,yaw,pitch);
+                Location capLocation = new Location(Bukkit.getServer().getWorld("world"),capX,capY,capZ);
                 EmpireSpawns.put(empire,location);
+                EmpireZones.put(empire,capLocation);
+                EmpireStatus.put(empire, status);
 
             }
     }
@@ -183,14 +202,26 @@ public class Main extends JavaPlugin implements Listener {
      public static String getTeam(String playerID){ //get playerID from hashmap
         return playerTeams.get(playerID);
     }
+    public static Boolean getStatus(String empire){ //get Empire status
+        return EmpireStatus.get(empire.toUpperCase());
+    }
 
     public static void setTeam(Player player, String empire){
         if(Main.playerTeams.containsKey(player.getUniqueId().toString())) {
-            Main.playerTeams.replace(player.getUniqueId().toString(), empire);
+            Main.playerTeams.replace(player.getUniqueId().toString(), empire.toUpperCase());
         }else{
-            Main.playerTeams.put(player.getUniqueId().toString(), empire);
+            Main.playerTeams.put(player.getUniqueId().toString(), empire.toUpperCase());
         }
     }
+
+    public static void setStatus(String empire, Boolean status){
+        if(Main.EmpireStatus.containsKey(empire)) {
+            Main.EmpireStatus.replace(empire, status);
+        }else{
+            Main.EmpireStatus.put(empire, status);
+        }
+    }
+
 
 
 
@@ -199,34 +230,47 @@ public class Main extends JavaPlugin implements Listener {
 
         createBoard(event.getPlayer());
 
-        if(playerdata.getConfig().contains("players."+ event.getPlayer().getUniqueId().toString() + ".empire")) {
-            playerTeams.put(event.getPlayer().getUniqueId().toString(),playerdata.getConfig().getString("players."+ event.getPlayer().getUniqueId().toString() + ".empire"));
+        if(playerdata.getConfig().contains("players."+ event.getPlayer().getUniqueId().toString() + ".empire") || Main.playerTeams.containsKey(event.getPlayer().getUniqueId().toString()) ) {
+
+            if (!Main.playerTeams.containsKey(event.getPlayer().getUniqueId().toString())) {
+                playerTeams.put(event.getPlayer().getUniqueId().toString(), playerdata.getConfig().getString("players." + event.getPlayer().getUniqueId().toString() + ".empire"));
+            }
+            String playerEmpire = playerTeams.get(event.getPlayer().getUniqueId().toString());
+            if (Objects.equals(EmpireStatus.get(playerEmpire), false)) {
+                if (Objects.equals(playerTeams.get(event.getPlayer().getUniqueId().toString()), "MONGOLS")) {
+                    event.setJoinMessage(ChatColor.GRAY + "[" + ChatColor.DARK_BLUE + "MONGOL" + ChatColor.GRAY + "] " + ChatColor.YELLOW + event.getPlayer().getDisplayName() + " has joined the game.");
+                    event.getPlayer().setPlayerListName(ChatColor.DARK_BLUE + "[Mongol] " + ChatColor.WHITE + event.getPlayer().getName());
+                    event.getPlayer().setDisplayName(ChatColor.DARK_BLUE + event.getPlayer().getName());
 
 
-            if (playerdata.getConfig().get("players." + event.getPlayer().getUniqueId().toString() + ".empire").equals("MONGOLS")) {
-                event.setJoinMessage(ChatColor.GRAY + "[" + ChatColor.DARK_BLUE + "MONGOL" + ChatColor.GRAY + "] " + ChatColor.YELLOW + event.getPlayer().getDisplayName() + " has joined the game.");
-                event.getPlayer().setPlayerListName(ChatColor.DARK_BLUE+ "[Mongol] " + ChatColor.WHITE + event.getPlayer().getName());
+                } else if (Objects.equals(playerTeams.get(event.getPlayer().getUniqueId().toString()), "OTTOMANS")) {
+                    event.setJoinMessage(ChatColor.GRAY + "[" + ChatColor.YELLOW + "OTTOMAN" + ChatColor.GRAY + "] " + ChatColor.YELLOW + event.getPlayer().getDisplayName() + " has joined the game. ");
+                    event.getPlayer().setPlayerListName(ChatColor.YELLOW + "[Ottoman] " + ChatColor.WHITE + event.getPlayer().getName());
+                    event.getPlayer().setDisplayName(ChatColor.YELLOW + event.getPlayer().getName());
 
+                } else if (Objects.equals(playerTeams.get(event.getPlayer().getUniqueId().toString()), "ROMANS")) {
+                    event.setJoinMessage(ChatColor.GRAY + "[" + ChatColor.DARK_RED + "ROMAN" + ChatColor.GRAY + "] " + ChatColor.YELLOW + event.getPlayer().getDisplayName() + " has joined the game. ");
+                    event.getPlayer().setPlayerListName(ChatColor.DARK_RED + "[Roman] " + ChatColor.WHITE + event.getPlayer().getName());
+                    event.getPlayer().setDisplayName(ChatColor.DARK_RED + event.getPlayer().getName());
 
-            } else if (playerdata.getConfig().get("players." + event.getPlayer().getUniqueId().toString() + ".empire").equals("OTTOMANS")) {
-                event.setJoinMessage(ChatColor.GRAY + "[" + ChatColor.YELLOW + "OTTOMAN" + ChatColor.GRAY + "] " + ChatColor.YELLOW + event.getPlayer().getDisplayName() + " has joined the game. ");
-                event.getPlayer().setPlayerListName(ChatColor.YELLOW + "[Ottoman] " + ChatColor.WHITE+ event.getPlayer().getName() );
-
-            }else if(playerdata.getConfig().get("players." + event.getPlayer().getUniqueId().toString() + ".empire").equals("ROMANS")){
-                event.setJoinMessage(ChatColor.GRAY + "[" + ChatColor.DARK_RED+ "ROMAN" + ChatColor.GRAY + "] " + ChatColor.YELLOW + event.getPlayer().getDisplayName() + " has joined the game. ");
-                event.getPlayer().setPlayerListName(ChatColor.DARK_RED + "[Roman] " + ChatColor.WHITE+ event.getPlayer().getName());
+                } else {
+                    event.setJoinMessage(ChatColor.GRAY + "[" + ChatColor.DARK_PURPLE + "VIKING" + ChatColor.GRAY + "] " + ChatColor.YELLOW + event.getPlayer().getDisplayName() + " has joined the game. ");
+                    event.getPlayer().setPlayerListName(ChatColor.DARK_PURPLE + "[Viking] " + ChatColor.WHITE + event.getPlayer().getName());
+                    event.getPlayer().setDisplayName(ChatColor.DARK_PURPLE + event.getPlayer().getName());
+                }
 
             }else{
-                event.setJoinMessage(ChatColor.GRAY + "[" + ChatColor.DARK_PURPLE+ "VIKING" + ChatColor.GRAY + "] " + ChatColor.YELLOW + event.getPlayer().getDisplayName() + " has joined the game. ");
-                event.getPlayer().setPlayerListName(ChatColor.DARK_PURPLE + "[Viking] " + ChatColor.WHITE + event.getPlayer().getName());
+                Main.setTeam(event.getPlayer(),"NEUTRAL");
+                event.getPlayer().getInventory().clear();
+                event.getPlayer().teleport(Bukkit.getServer().getWorld("world").getSpawnLocation());
+                event.getPlayer().sendMessage(ChatColor.RED + "Your empire has been captured. Choose another Empire!");
             }
 
 
-        }else{
-            Location location = new Location(event.getPlayer().getWorld(),1,4,1);
-            event.getPlayer().teleport(location);
-            event.setJoinMessage( ChatColor.YELLOW + event.getPlayer().getDisplayName() + " has joined the game.");
-        }
+            } else {
+                event.getPlayer().teleport(getServer().getWorld("world").getSpawnLocation());
+                event.setJoinMessage(ChatColor.YELLOW + event.getPlayer().getDisplayName() + " has joined the game.");
+            }
 
 
 
@@ -354,6 +398,34 @@ public class Main extends JavaPlugin implements Listener {
                 player.sendMessage("Map is empty");
 
             }        }
+
+        if(command.getName().equalsIgnoreCase("empirelist")){
+            int OTTOMANS = 0;
+            int MONGOLS = 0;
+            int ROMANS = 0;
+            int VIKINGS = 0;
+
+            for(Map.Entry<String, String> entry: Main.CaptureOwners.entrySet()){
+                if(Objects.equals(entry.getValue(),"OTTOMANS")){
+                    OTTOMANS++;
+                }else if(Objects.equals(entry.getValue(),"MONGOLS")){
+                    MONGOLS++;
+                }else if(Objects.equals(entry.getValue(),"ROMANS")){
+                    ROMANS++;
+                }else{
+                    VIKINGS++;
+                }
+            }
+            player.sendMessage(ChatColor.YELLOW + "Ottoman towns" + ChatColor.WHITE + ": " + OTTOMANS);
+            player.sendMessage(ChatColor.DARK_BLUE + "Mongol towns" + ChatColor.WHITE + ": " + MONGOLS);
+            player.sendMessage(ChatColor.DARK_RED + "Roman towns" + ChatColor.WHITE + ": " + ROMANS);
+            player.sendMessage(ChatColor.DARK_PURPLE + "Viking towns" + ChatColor.WHITE + ": " + VIKINGS);
+        }
+        if(command.getName().equalsIgnoreCase("team")){
+            player.sendMessage(playerTeams.get(player.getUniqueId().toString()));
+        }
+
+
 
             return true;
     }

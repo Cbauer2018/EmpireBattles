@@ -14,7 +14,7 @@ commands:
   empire:
     description: Used for empire commands
     usage: /<command>
-  setspawn:
+  setSpawn:
     description: Used to set empire spawn.
     usage: /<command>
 
@@ -38,4 +38,10 @@ commands:
     usage: /<command>
   warp:
     description: Sends Player to town spawn
+    usage: /<command>
+  empirelist:
+    description: Shows number of towns each empire has
+    usage: /<command>
+  team:
+    description: Check team
     usage: /<command>
