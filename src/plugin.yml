@@ -45,3 +45,7 @@ commands:
   team:
     description: Check team
     usage: /<command>
+
+  blockowner:
+    description: Set the town for an ore
+    usage: /<command>

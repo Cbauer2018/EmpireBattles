@@ -70,6 +70,14 @@ public class EmpireCapZone {
             for (Map.Entry<String, String> entry : Main.CaptureOwners.entrySet()) {  //Checks if Empire owns any towns. If no towns are owned empire can be captured
                 if (Objects.equals(entry.getValue(), empire)) {
                     broadcastMessage = true;
+                    for (Player p : lastCapping) { // Remove previous players
+                        bar.removePlayer(p);
+                    }
+                    bar.setColor(BarColor.GREEN);
+                    bar.setTitle(ChatColor.WHITE + " CAPTURE ZONE IS SECURE.");
+                    bar.setProgress(1.0);
+                    score = 0;
+
                     return;
                 }
 

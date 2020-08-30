@@ -23,6 +23,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -45,11 +46,13 @@ public class Main extends JavaPlugin implements Listener {
 
 
     public Inventory inv;
+    private Location blockLocation;
     public GameInstance gameInstance;
     public PlayerDataManager playerdata;
     public EmpireDataManager empiredata;
     public TownDataManager towndata;
-    public static Map<String, String> CaptureBlocks = new HashMap<String, String>();
+
+    public static Map<Location, String> CaptureBlocks = new HashMap<Location,String>();
 
     public static Map<String,String> playerTeams = new ConcurrentHashMap<String,String>();
     public static Map<String, Location> CaptureZones = new HashMap<String,Location>();
@@ -59,6 +62,7 @@ public class Main extends JavaPlugin implements Listener {
     public static Map<String, Boolean> EmpireStatus = new HashMap<String, Boolean>();
 
     public Map<String, Location> TownSpawns = new HashMap<String, Location>();
+
     public Map<String,Long> cooldowns = new HashMap<String,Long>();
 
 
@@ -117,9 +121,7 @@ public class Main extends JavaPlugin implements Listener {
 
     // Cbs = Capture Blocks
     public void saveCbs(){
-        for(Map.Entry<String,String> entry: CaptureBlocks.entrySet()){
-            this.getConfig().set("data." + entry.getKey(), entry.getValue());
-        }
+
 
         for(Map.Entry<String,Location> entry: CaptureZones.entrySet()){
             double X = entry.getValue().getX();
@@ -151,6 +153,20 @@ public class Main extends JavaPlugin implements Listener {
             this.empiredata.saveConfig();
 
         }
+        for(Map.Entry<Location, String> entry: CaptureBlocks.entrySet()){
+            double X = entry.getKey().getX();
+            double Y = entry.getKey().getY();
+            double Z = entry.getKey().getZ();
+
+            int xname = (int) entry.getKey().getX();  // the "." messes up the config file so a integer must be used
+            int yname = (int) entry.getKey().getY();
+            int zname = (int) entry.getKey().getZ();
+            String blockname = String.valueOf(xname) + String.valueOf(yname) + String.valueOf(zname) ;
+            this.getConfig().set("blocks." + blockname + ".X", X );
+            this.getConfig().set("blocks." + blockname + ".Y", Y );
+            this.getConfig().set("blocks." + blockname + ".Z", Z );
+            this.getConfig().set("blocks." + blockname + ".town", entry.getValue() );
+        }
 
         this.saveConfig();
     }
@@ -180,15 +196,18 @@ public class Main extends JavaPlugin implements Listener {
 
         Collection<String> Empires = this.empiredata.getConfig().getKeys(false);
             for(String empire: Empires){
-                Double X = empiredata.getConfig().getDouble(empire + ".spawnpoint" + ".X");
+                Double X = empiredata.getConfig().getDouble(empire + ".spawnpoint" + ".X"); //Get spawn location from file
                 Double Y = empiredata.getConfig().getDouble(empire + ".spawnpoint" + ".Y");
                 Double Z = empiredata.getConfig().getDouble(empire + ".spawnpoint" + ".Z");
                 Float yaw = Float.valueOf(empiredata.getConfig().getString(empire + ".spawnpoint" + ".yaw"));
                 Float pitch = Float.valueOf(empiredata.getConfig().getString(empire + ".spawnpoint" + ".pitch"));
-                double capX =  this.empiredata.getConfig().getDouble(empire+ ".capture"+".X");
+
+
+                double capX =  this.empiredata.getConfig().getDouble(empire+ ".capture"+".X"); // Get empire's capture zone from file
                 double capY = this.empiredata.getConfig().getDouble(empire+ ".capture"+".Y");
                 double capZ = this.empiredata.getConfig().getDouble(empire+ ".capture"+".Z");
-                Boolean status = this.empiredata.getConfig().getBoolean(empire + ".status");
+
+                Boolean status = this.empiredata.getConfig().getBoolean(empire + ".status"); //Get empire's status from file;
 
                 Location location = new Location(Bukkit.getServer().getWorld("world"),X,Y,Z,yaw,pitch);
                 Location capLocation = new Location(Bukkit.getServer().getWorld("world"),capX,capY,capZ);
@@ -197,6 +216,18 @@ public class Main extends JavaPlugin implements Listener {
                 EmpireStatus.put(empire, status);
 
             }
+        Collection<String> blocks = this.getConfig().getConfigurationSection("blocks.").getKeys(false);
+            for(String block : blocks){
+
+                double X = this.getConfig().getDouble("blocks." + block + ".X");
+                double Y =this.getConfig().getDouble("blocks." + block + ".Y" );
+                double Z =this.getConfig().getDouble("blocks." + block + ".Z");
+                String town =this.getConfig().getString("blocks." + block + ".town");
+
+                Location blockLocation = new Location(getServer().getWorld("world"),X,Y,Z);
+                CaptureBlocks.put(blockLocation,town);
+            }
+
     }
 
      public static String getTeam(String playerID){ //get playerID from hashmap
@@ -284,58 +315,43 @@ public class Main extends JavaPlugin implements Listener {
                              Double location1X =   event.getClickedBlock().getLocation().getX();
                              Double location1Y =   event.getClickedBlock().getLocation().getY();
                              Double location1Z =   event.getClickedBlock().getLocation().getZ();
-                            towndata.getConfig().set("Location1X",location1X);
-                            towndata.getConfig().set("Location1Y",location1Y);
-                            towndata.getConfig().set("Location1Z",location1Z);
-                            towndata.saveConfig();
-                            event.getPlayer().sendMessage("Location 1 set to:" + location1X + "," + location1Y + "," + location1Z);
+                           blockLocation = event.getClickedBlock().getLocation();
+                            event.getPlayer().sendMessage("Location set to:" + location1X + "," + location1Y + "," + location1Z);
                 }
             }
 
         }    }
 
-    @EventHandler
-    public void onLeftClick(PlayerInteractEvent event){
-        if(event.getAction() == Action.LEFT_CLICK_BLOCK){
-            if(event.getItem() != null){
-                if(event.getItem().getItemMeta().equals(CaptureTool.CaptureTool.getItemMeta())){
-
-
-                    Double location2X =   event.getClickedBlock().getLocation().getX();
-                    Double location2Y =   event.getClickedBlock().getLocation().getY();
-                    Double location2Z =   event.getClickedBlock().getLocation().getZ();
-                    towndata.getConfig().set("Location2X",location2X);
-                    towndata.getConfig().set("Location2Y",location2Y);
-                    towndata.getConfig().set("Location2Z",location2Z);
-                    towndata.saveConfig();
-                    event.getPlayer().sendMessage("Location 2 set to:" + location2X + "," + location2Y + "," + location2Z);
-
-                }
-            }
-
-        }    }
 
     @EventHandler
-    public void onPlayerSay(AsyncPlayerChatEvent event){
+    public void onPlayerSay(AsyncPlayerChatEvent event) {
 
-        if(playerdata.getConfig().get("players."+ event.getPlayer().getUniqueId().toString() + ".empire").equals("MONGOLS")){
-            event.setFormat(ChatColor.GRAY + "[" + ChatColor.DARK_BLUE + "MONGOL" + ChatColor.GRAY + "] " + ChatColor.WHITE + event.getPlayer().getDisplayName() + ": "+ event.getMessage());
+        if (Objects.equals(playerTeams.get(event.getPlayer().getUniqueId().toString()), "MONGOLS")) {
+            event.setFormat(ChatColor.GRAY + "[" + ChatColor.DARK_BLUE + "MONGOL" + ChatColor.GRAY + "] " + ChatColor.WHITE + event.getPlayer().getDisplayName() + ": " + event.getMessage());
+        } else if (Objects.equals(playerTeams.get(event.getPlayer().getUniqueId().toString()), "OTTOMANS")) {
+            event.setFormat(ChatColor.GRAY + "[" + ChatColor.YELLOW + "OTTOMAN" + ChatColor.GRAY + "] " + ChatColor.WHITE + event.getPlayer().getDisplayName() + ": " + event.getMessage());
+        } else if (Objects.equals(playerTeams.get(event.getPlayer().getUniqueId().toString()), "ROMANS")) {
+            event.setFormat(ChatColor.GRAY + "[" + ChatColor.DARK_RED + "ROMAN" + ChatColor.GRAY + "] " + ChatColor.WHITE + event.getPlayer().getDisplayName() + ": " + event.getMessage());
+        } else if (Objects.equals(playerTeams.get(event.getPlayer().getUniqueId().toString()), "VIKINGS")) {
+            event.setFormat(ChatColor.GRAY + "[" + ChatColor.DARK_PURPLE + "VIKING" + ChatColor.GRAY + "] " + ChatColor.WHITE + event.getPlayer().getDisplayName() + ": " + event.getMessage());
+        } else {
+            event.setFormat(ChatColor.GRAY  + event.getPlayer().getDisplayName() + ": " + ChatColor.WHITE + event.getMessage());
         }
 
-        if(playerdata.getConfig().get("players."+ event.getPlayer().getUniqueId().toString() + ".empire").equals("OTTOMANS")){
-            event.setFormat(ChatColor.GRAY + "[" + ChatColor.YELLOW + "OTTOMAN" + ChatColor.GRAY + "] " + ChatColor.WHITE + event.getPlayer().getDisplayName() + ": "+ event.getMessage());
-        }
-
-        if(playerdata.getConfig().get("players."+ event.getPlayer().getUniqueId().toString() + ".empire").equals("ROMANS")){
-            event.setFormat(ChatColor.GRAY + "[" + ChatColor.DARK_RED + "ROMAN" + ChatColor.GRAY + "] " + ChatColor.WHITE + event.getPlayer().getDisplayName() + ": "+ event.getMessage());
-
-        }
-
-        if(playerdata.getConfig().get("players."+ event.getPlayer().getUniqueId().toString() + ".empire").equals("VIKINGS")){
-            event.setFormat(ChatColor.GRAY + "[" + ChatColor.DARK_PURPLE + "VIKING" + ChatColor.GRAY + "] " + ChatColor.WHITE + event.getPlayer().getDisplayName() + ": "+ event.getMessage());
-        }
     }
 
+    @EventHandler
+    public void onPlayerHit(EntityDamageByEntityEvent e) {
+        if (!(e.getEntity() instanceof Player && e.getDamager() instanceof Player))
+            return;
+        Player victim = (Player) e.getEntity();
+        Player attacker = (Player) e.getDamager();
+
+        if(!areEnemies(victim,attacker)){
+            e.setCancelled(true);
+            return;
+        }
+    }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] strings) {
@@ -345,6 +361,16 @@ public class Main extends JavaPlugin implements Listener {
         if(command.getName().equalsIgnoreCase("capturetool")){
                 player.getInventory().addItem(CaptureTool.CaptureTool);
         }
+
+        if(command.getName().equalsIgnoreCase("blockowner")){
+           if(CaptureOwners.containsKey(strings[0].toUpperCase())){
+               CaptureBlocks.put(blockLocation,strings[0].toUpperCase());
+               player.sendMessage(ChatColor.BLUE + "Block set for " + strings[0].toUpperCase());
+           }else{
+               player.sendMessage("Invalid town name.");
+           }
+        }
+
 
         if(command.getName().equalsIgnoreCase("warp")){
             if(TownSpawns.containsKey(strings[0].toUpperCase())){
@@ -441,29 +467,88 @@ public class Main extends JavaPlugin implements Listener {
         final ItemStack netherite = new ItemStack(Material.NETHERITE_INGOT);
         final ItemStack diamond = new ItemStack(Material.DIAMOND);
         if (block.getType() == Material.IRON_ORE) { // Checks if the block broken is Iron Ore.
-            block.setType(Material.AIR); // If true, replaces Iron Ore with Air block. (Removes block.)
-            inv.addItem(iron); // Adds iron bar to player's inventory.
-            Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.IRON_ORE), 100);
-            //inv.addItem(new ItemStack[] { iron }); // Adds iron bar to player's inventory.
+            if(CaptureBlocks.containsKey(block.getLocation())) {  //If block is within Hashmap of blocks
+                String town = CaptureBlocks.get(block.getLocation()); // block's town
+
+                if(Objects.equals(getTeam(p.getUniqueId().toString()), CaptureOwners.get(town))) {
+                    block.setType(Material.AIR); // If true, replaces Iron Ore with Air block. (Removes block.)
+                    inv.addItem(iron); // Adds iron bar to player's inventory.
+                    Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.IRON_ORE), 100);
+                    //inv.addItem(new ItemStack[] { iron }); // Adds iron bar to player's inventory.
+                }else{
+                    p.sendMessage(ChatColor.RED + "Your empire must own this town to mine!");
+                    e.setCancelled(true);
+                }
+            }else{
+                e.setCancelled(true); //If block isn't in a town it won't be broken
+                return;
+            }
             return;
         }
+
+
         if (block.getType() == Material.GOLD_ORE) { // Checks if the block broken is Gold Ore.
-            block.setType(Material.AIR); // If true, replaces Gold Ore block with Air block. (Removes block.)
-            inv.addItem(gold);
-            Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.GOLD_ORE), 100);
+            if(CaptureBlocks.containsKey(block.getLocation())) {  //If block is within Hashmap of blocks
+                String town = CaptureBlocks.get(block.getLocation()); // block's town
+
+                if(Objects.equals(getTeam(p.getUniqueId().toString()), CaptureOwners.get(town))) {
+                    block.setType(Material.AIR); // If true, replaces Iron Ore with Air block. (Removes block.)
+                    inv.addItem(gold); // Adds iron bar to player's inventory.
+                    Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.GOLD_ORE), 100);
+                    //inv.addItem(new ItemStack[] { iron }); // Adds iron bar to player's inventory.
+                }else{
+                    p.sendMessage(ChatColor.RED + "Your empire must own this town to mine!");
+                    e.setCancelled(true);
+                }
+            }else{
+                e.setCancelled(true); //If block isn't in a town it won't be broken
+                return;
+            }
             return;
         }
+
+
+
         if (block.getType() == Material.ANCIENT_DEBRIS) { // Checks if the block broken is Iron Ore.
-            block.setType(Material.AIR); // If true, replaces Iron Ore with Air block. (Removes block.)
-            inv.addItem(netherite); // Adds iron bar to player's inventory.
-            Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.ANCIENT_DEBRIS), 100);
-            //inv.addItem(new ItemStack[] { iron }); // Adds iron bar to player's inventory.
+            if(CaptureBlocks.containsKey(block.getLocation())) {  //If block is within Hashmap of blocks
+                String town = CaptureBlocks.get(block.getLocation()); // block's town
+
+                if(Objects.equals(getTeam(p.getUniqueId().toString()), CaptureOwners.get(town))) {
+                    block.setType(Material.AIR); // If true, replaces Iron Ore with Air block. (Removes block.)
+                    inv.addItem(netherite); // Adds iron bar to player's inventory.
+                    Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.ANCIENT_DEBRIS), 100);
+                    //inv.addItem(new ItemStack[] { iron }); // Adds iron bar to player's inventory.
+                }else{
+                    p.sendMessage(ChatColor.RED + "Your empire must own this town to mine!");
+                    e.setCancelled(true);
+                }
+            }else{
+                e.setCancelled(true); //If block isn't in a town it won't be broken
+                return;
+            }
             return;
         }
+
+
+
+
             if (block.getType() == Material.DIAMOND_ORE) { // Checks if the block broken is Gold Ore.
-                block.setType(Material.AIR); // If true, replaces Gold Ore block with Air block. (Removes block.)
-                inv.addItem(diamond);
-                Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.DIAMOND_ORE), 100);
+                if(CaptureBlocks.containsKey(block.getLocation())) {  //If block is within Hashmap of blocks
+                    String town = CaptureBlocks.get(block.getLocation()); // block's town
+
+                    if(Objects.equals(getTeam(p.getUniqueId().toString()), CaptureOwners.get(town))) {
+                        block.setType(Material.AIR); // If true, replaces Iron Ore with Air block. (Removes block.)
+                        inv.addItem(diamond); // Adds iron bar to player's inventory.
+                        Bukkit.getScheduler().runTaskLater(this, () -> block.setType(Material.DIAMOND_ORE), 100);
+                        //inv.addItem(new ItemStack[] { iron }); // Adds iron bar to player's inventory.
+                    }else{
+                        p.sendMessage(ChatColor.RED + "Your empire must own this town to mine!");
+                        e.setCancelled(true);
+                    }
+                }else{
+                    e.setCancelled(true); //If block isn't in a town it won't be broken
+                    return;
+                }
                 return;
             }
 
@@ -527,6 +612,15 @@ public class Main extends JavaPlugin implements Listener {
 
 
 
+    }
+
+    public boolean areEnemies(Player a , Player b){
+        String aTeam = getTeam(a.getUniqueId().toString());
+        String bTeam = getTeam(a.getUniqueId().toString());
+        if(Objects.equals(aTeam,bTeam)){
+            return false;
+        }
+        return true;
     }
 
 
