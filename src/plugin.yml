@@ -3,49 +3,113 @@ version: 1.0.0
 author: Tort
 main: com.tort.EmpireBattles.Main
 api-version: 1.14
+depend:
+  [PlayerParticles, dynmap]
+permissions:
+  Empires.server.bypass:
+    description: Allows players to bypass the full server limit.
+  Empires.server.balancebypass:
+    description: Allows players to bypass the balancing system of teams.
+
+
 commands:
-  setsector:
-    description: Creates a sector
-    usage: /<command>
-    aliases:  setSector
-  delSector:
-    description: Delete a sector.
-    usage: /<command>
   empire:
     description: Used for empire commands
     usage: /<command>
-  setSpawn:
+    permission: Empires.empires
+  setspawn:
     description: Used to set empire spawn.
     usage: /<command>
+    permission: Empires.setSpawn
+
+  setcapture:
+    description: Set capture zone for empire.
+    usage: /<command>
+    permission: Empires.empires.setcapture
 
   spawn:
     description: Used to teleport to spawn.
     usage: /<command>
+    permission: Empires.spawn
   town:
     description: town commands
     usage: /<command>
+    permission: Empires.town
 
   capturetool:
     description: Get capture tool.
     usage: /<command>
+    permission: Empires.capturetool
 
   start:
     description: Start game.
     usage: /<command>
+    permission: Empires.start
+
+  stopgame:
+    description: Stop game.
+    usage: /<command>
+    permission: Empires.stop
 
   caplist:
     description: Get list of Capture zones
     usage: /<command>
+    permission: Empires.caplist
   warp:
     description: Sends Player to town spawn
     usage: /<command>
+    permission: Empires.warp
   empirelist:
     description: Shows number of towns each empire has
     usage: /<command>
+    permission: Empires.empirelist
   team:
     description: Check team
+    usage: /<command>
+    permission: Empires.team
+
+  smith:
+    description: Open Smithing table
+    usage: /<command>
+    permission: Empires.smith
+  stats:
+    description: Show Player Stats
     usage: /<command>
 
   blockowner:
     description: Set the town for an ore
+    usage: /<command>
+    permission: Empires.blockowner
+
+  empirechat:
+    description: Enable and disable empire chat.
+    usage: /<command>
+    permission: Empires.empirechat
+  particle:
+    description: set particle
+    usage: /<command>
+    permission: empires.particles.particle
+
+  resetStatus:
+    description: Reset Empire Status
+    usage: /<command>
+    permission: empires.resetStatus
+
+  resetTowns:
+    description: Reset Town Ownership
+    usage: /<command>
+    permission: empires.resetTowns
+  resetPlayers:
+    description: Reset the empire of all players
+    usage: /<command>
+    permission: empires.resetPlayers
+  toggleWhitelist:
+    description: Turn Whitelist off
+    usage: /<command>
+    permission: empires.toggleWhitelist
+  horse:
+    description: Spawns player's horse
+    usage: /<command>
+  markerlist:
+    description: Shows marker list
     usage: /<command>

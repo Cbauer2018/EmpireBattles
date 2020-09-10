@@ -5,17 +5,11 @@ import org.bukkit.*;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.*;
-import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.inventory.meta.FireworkMeta;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static java.lang.Math.abs;
 import static org.bukkit.Bukkit.getLogger;
@@ -30,12 +24,19 @@ public class CapZone  {
     private String lastCapturingEmpire = "NEUTRAL";
     private double progressX = 0;
     private double progressY = 0;
-    double time = 1.0 / (30);
+    private StatHandler statHandler;
+    private double progressO = 0;
+    private double progressM = 0;
+    private double progressR = 0;
+    private double progressV = 0;
+    private final int capturetime = 15;
+    private Main plugin;
 
-    public CapZone(String town,Location capLocation, String zoneOwner){
+    public CapZone(String town,Location capLocation, String zoneOwner , Main plugin){
         this.town = town;
         this.capLocation = capLocation;
         this.zoneOwner = zoneOwner;
+        this.plugin = plugin;
 
     }
 
@@ -63,7 +64,7 @@ public class CapZone  {
             bar = Bukkit.createBossBar(ChatColor.DARK_AQUA + "CAPTURING " + town, BarColor.BLUE, BarStyle.SOLID);
             bar.setVisible(true);
             bar.setProgress(0.0);
-
+            statHandler = plugin.getStatHandler();
 
 
 
@@ -110,32 +111,55 @@ public class CapZone  {
 
 
                     if (Objects.equals(zoneOwner, "OTTOMANS")) {
-                        bar.setColor(BarColor.GREEN);
-                        bar.setTitle(ChatColor.WHITE + town + " is captured!");
-                        bar.setProgress(1.0);
-                        progressX = 0;
-                        progressY = 0;
-                    } else if (Objects.equals(lastCapturingEmpire, "OTTOMANS")) {
+                        if(progressM > 0 || progressR > 0 || progressV > 0){
+                            bar.setColor(BarColor.BLUE);
+                            bar.setTitle(ChatColor.WHITE + "Clearing Progress...");
+                            double max = Math.max(Math.max(progressM,progressR),progressV);
+                            bar.setProgress(max/capturetime);
+
+                            progressM -= 2;
+                            progressR -= 2;
+                            progressV -= 2;
+                        }else {
+                            bar.setColor(BarColor.GREEN);
+                            bar.setTitle(ChatColor.WHITE + town + " is secure!");
+                            bar.setProgress(1.0);
+                            progressO = 0;
+                            progressM = 0;
+                            progressR = 0;
+                            progressV = 0;
+                        }
+
+
+
+                    } else {
+                        if(progressO <= 0){
+                            progressO = 0;
+                            Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.GOLD + "Ottomans are capturing " + town.toUpperCase());
+                        }
                         bar.setColor(BarColor.BLUE);
                         bar.setTitle(ChatColor.YELLOW + "OTTOMANS " + ChatColor.DARK_AQUA + "ARE CAPTURING " + town );
-                        progressX++;
-                        double progress = abs(progressX) / 15;
+                        progressO++;
+                        double progress = abs(progressO) / capturetime;
                         bar.setProgress(progress);
-                        if (progressX == 15) {
+                        if (progressO == capturetime) {
+                            Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.GOLD + "OTTOMANS HAVE CAPTURED " + town.toUpperCase() + " FROM " + zoneOwner.toUpperCase());
                             zoneOwner = "OTTOMANS";
                             spawnFireworks(capLocation, Color.YELLOW);
                             Main.CaptureOwners.put(town.toUpperCase(), "OTTOMANS");
+                            plugin.changeTownColor(town.toUpperCase(), "OTTOMANS");
+                            progressO = 0;
+                            progressM = 0;
+                            progressR = 0;
+                            progressV = 0;
+                            for(Player p: playersOnPoint){
+                                String pTeam = Main.getTeam(p.getUniqueId().toString());
+                                if (Objects.equals(pTeam, "OTTOMANS")) {
+                                    statHandler.addCapture(p);
+                                    statHandler.playerdata.saveConfig();
+                                }
+                            }
                         }
-                    } else {
-                        bar.setColor(BarColor.BLUE);
-                        bar.setTitle(ChatColor.YELLOW + "OTTOMANS " + ChatColor.DARK_AQUA + "ARE CAPTURING " + town );
-                        progressX = 0;
-                        progressY = 0;
-                        progressX++;
-                        double progress = abs(progressX) / 15;
-                        bar.setProgress(progress);
-
-                        lastCapturingEmpire = "OTTOMANS";
                     }
 
 
@@ -143,62 +167,108 @@ public class CapZone  {
 
 
                     if (Objects.equals(zoneOwner, "MONGOLS")) {
-                        bar.setColor(BarColor.GREEN);
-                        bar.setTitle(ChatColor.WHITE + town + " is captured!");
-                        bar.setProgress(1.0);
-                        progressX = 0;
-                        progressY = 0;
-                    } else if (Objects.equals(lastCapturingEmpire, "MONGOLS")) {
+                        if(progressO > 0 || progressR > 0 || progressV > 0){
+                            bar.setColor(BarColor.BLUE);
+                            bar.setTitle(ChatColor.WHITE + "Clearing Progress...");
+                            double max = Math.max(Math.max(progressO,progressR),progressV);
+                            bar.setProgress(max/capturetime);
+                            progressO -= 2;
+                            progressR -= 2;
+                            progressV -= 2;
+                        }else {
+                            bar.setColor(BarColor.GREEN);
+                            bar.setTitle(ChatColor.WHITE + town + " is secure!");
+                            bar.setProgress(1.0);
+                            progressO = 0;
+                            progressM = 0;
+                            progressR = 0;
+                            progressV = 0;
+                        }
+
+
+                    } else {
+                        if(progressM <= 0){
+                            progressM = 0;
+                            Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.GOLD + "Mongols are capturing " + town.toUpperCase());
+                        }
                         bar.setColor(BarColor.BLUE);
                         bar.setTitle(ChatColor.DARK_BLUE + "MONGOLS " + ChatColor.DARK_AQUA + "ARE CAPTURING " + town );
-                        progressX--;
-                        double progress = abs(progressX) / 15;
+                        progressM++;
+                        double progress = abs(progressM) / capturetime;
                         bar.setProgress(progress);
-                        if (progressX == -15) {
+                        if (progressM == capturetime) {
+                            Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.GOLD + "MONGOLS HAVE CAPTURED " + town.toUpperCase() + " FROM " + zoneOwner.toUpperCase());
                             zoneOwner = "MONGOLS";
                             spawnFireworks(capLocation, Color.BLUE);
                             Main.CaptureOwners.put(town.toUpperCase(), "MONGOLS");
+                            plugin.changeTownColor(town.toUpperCase(), "MONGOLS");
+                            progressO = 0;
+                            progressM = 0;
+                            progressR = 0;
+                            progressV = 0;
+                            for(Player p: playersOnPoint){
+                                String pTeam = Main.getTeam(p.getUniqueId().toString());
+                                if (Objects.equals(pTeam, "MONGOLS")) {
+                                    statHandler.addCapture(p);
+                                    statHandler.playerdata.saveConfig();
+                                }
+                            }
+
                         }
-                    } else {
-                        bar.setColor(BarColor.BLUE);
-                        bar.setTitle(ChatColor.DARK_BLUE + "MONGOLS " + ChatColor.DARK_AQUA + "ARE CAPTURING " + town );
-                        progressX = 0;
-                        progressY = 0;
-                        progressX--;
-                        double progress = abs(progressX) / 15;
-                        bar.setProgress(progress);
-                        lastCapturingEmpire = "MONGOLS";
                     }
 
 
                 } else if (ROMANS > OTTOMANS && ROMANS > MONGOLS && ROMANS > VIKINGS) { // If Romans have the most people on the Capture point
 
                     if (Objects.equals(zoneOwner, "ROMANS")) {
-                        bar.setColor(BarColor.GREEN);
-                        bar.setTitle(ChatColor.WHITE + town + " is captured!");
-                        bar.setProgress(1.0);
-                        progressX = 0;
-                        progressY = 0;
-                    } else if (Objects.equals(lastCapturingEmpire, "ROMANS")) {
+                        if(progressO > 0 || progressM > 0 || progressV > 0){
+                            bar.setColor(BarColor.BLUE);
+                            bar.setTitle(ChatColor.WHITE + "Clearing Progress...");
+                            double max = Math.max(Math.max(progressO,progressM),progressV);
+
+                            bar.setProgress(max/capturetime);
+                            progressM -= 2;
+                            progressO -= 2;
+                            progressV -= 2;
+                        }else {
+                            bar.setColor(BarColor.GREEN);
+                            bar.setTitle(ChatColor.WHITE + town + " is secure!");
+                            bar.setProgress(1.0);
+                            progressO = 0;
+                            progressM = 0;
+                            progressR = 0;
+                            progressV = 0;
+                        }
+
+                    } else  {
+                        if(progressR <= 0){
+                            progressR = 0;
+                            Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.GOLD + "Romans are capturing " + town.toUpperCase());
+                        }
                         bar.setColor(BarColor.BLUE);
                         bar.setTitle(ChatColor.DARK_RED + "ROMANS " + ChatColor.DARK_AQUA + "ARE CAPTURING " + town );
-                        progressY++;
-                        double progress = abs(progressY) / 15;
+                        progressR++;
+                        double progress = abs(progressR) / capturetime;
                         bar.setProgress(progress);
-                        if (progressY == 15) {
+                        if (progressR == capturetime) {
+                            Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.GOLD + "ROMANS HAVE CAPTURED " + town.toUpperCase() + " FROM " + zoneOwner.toUpperCase());
                             zoneOwner = "ROMANS";
                             spawnFireworks(capLocation, Color.RED);
                             Main.CaptureOwners.put(town.toUpperCase(), "ROMANS");
+                            plugin.changeTownColor(town.toUpperCase(), "ROMANS");
+                            progressO = 0;
+                            progressM = 0;
+                            progressR = 0;
+                            progressV = 0;
+                            for(Player p: playersOnPoint){
+                                String pTeam = Main.getTeam(p.getUniqueId().toString());
+                                if (Objects.equals(pTeam, "ROMANS")) {
+                                    statHandler.addCapture(p);
+                                    statHandler.playerdata.saveConfig();
+                                }
+                            }
+
                         }
-                    } else {
-                        bar.setColor(BarColor.BLUE);
-                        bar.setTitle(ChatColor.DARK_RED + "ROMANS " + ChatColor.DARK_AQUA + "ARE CAPTURING " + town );
-                        progressX = 0;
-                        progressY = 0;
-                        progressY++;
-                        double progress = abs(progressY) / 15;
-                        bar.setProgress(progress);
-                        lastCapturingEmpire = "ROMANS";
                     }
 
 
@@ -206,32 +276,55 @@ public class CapZone  {
 
 
                     if (Objects.equals(zoneOwner, "VIKINGS")) {
-                        bar.setColor(BarColor.GREEN);
-                        bar.setTitle(ChatColor.WHITE + town + " is captured!");
-                        bar.setProgress(1.0);
-                        progressX = 0;
-                        progressY = 0;
-                    } else if (Objects.equals(lastCapturingEmpire, "VIKINGS")) {
+                        if(progressO > 0 || progressM > 0 || progressR > 0){
+                            bar.setColor(BarColor.BLUE);
+                            bar.setTitle(ChatColor.WHITE + "Clearing Progress...");
+                            double max = Math.max(Math.max(progressO,progressM),progressR);
+                            bar.setProgress(max/capturetime);
+                            progressM -= 2;
+                            progressO -= 2;
+                            progressR -= 2;
+                        }else {
+                            bar.setColor(BarColor.GREEN);
+                            bar.setTitle(ChatColor.WHITE + town + " is secure!");
+                            bar.setProgress(1.0);
+                            progressO = 0;
+                            progressM = 0;
+                            progressR = 0;
+                            progressV = 0;
+                        }
+
+
+
+                    } else  {
+                        if(progressV <= 0){
+                            progressV = 0;
+                            Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.GOLD + "Vikings are capturing " + town.toUpperCase());
+                        }
                         bar.setColor(BarColor.BLUE);
                         bar.setTitle(ChatColor.DARK_PURPLE + "VIKINGS " + ChatColor.DARK_AQUA + "ARE CAPTURING " + town );
-                        progressY--;
-                        double progress = abs(progressY) / 15;
+                        progressV++;
+                        double progress = abs(progressV) / capturetime;
                         bar.setProgress(progress);
-                        if (progressY == -15) {
+                        if (progressV == capturetime) {
+                            Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.GOLD + "VIKINGS HAVE CAPTURED " + town.toUpperCase() + " FROM " + zoneOwner.toUpperCase());
                             zoneOwner = "VIKINGS";
                             spawnFireworks(capLocation, Color.PURPLE);
                             Main.CaptureOwners.put(town.toUpperCase(), "VIKINGS");
-                        }
-                    } else {
+                            plugin.changeTownColor(town.toUpperCase(), "VIKINGS");
+                            progressO = 0;
+                            progressM = 0;
+                            progressR = 0;
+                            progressV = 0;
+                            for(Player p: playersOnPoint){
+                                String pTeam = Main.getTeam(p.getUniqueId().toString());
+                                if (Objects.equals(pTeam, "VIKINGS")) {
+                                    statHandler.addCapture(p);
+                                    statHandler.playerdata.saveConfig();
+                                }
+                            }
 
-                        bar.setColor(BarColor.BLUE);
-                        bar.setTitle(ChatColor.DARK_PURPLE + "VIKINGS " + ChatColor.DARK_AQUA + "ARE CAPTURING " + town );
-                        progressX = 0;
-                        progressY = 0;
-                        progressY--;
-                        double progress = abs(progressY) / 15;
-                        bar.setProgress(progress);
-                        lastCapturingEmpire = "VIKINGS";
+                        }
                     }
 
                 } else {//Contested
@@ -241,7 +334,7 @@ public class CapZone  {
                 }
             }
         }catch (Exception e){
-            getLogger().log(Level.INFO, String.valueOf(e.getStackTrace()));
+            getLogger().log(Level.INFO, String.valueOf(e));
         }
 
     }
@@ -288,6 +381,9 @@ public class CapZone  {
         fw.detonate();
 
 
+
     }
+
+
 
     }
