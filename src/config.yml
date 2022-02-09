@@ -1,0 +1,17 @@
+broadcasts:
+  test1:
+    - "&r"
+    - "<center>&e&lServer Full?</center>"
+    - "<center>&6You can buy a reserved slot at &5&kA&b&lSTORE.MCEMPIRES.NET&5&kA</center>"
+    - "&r"
+  test2:
+    - "&r"
+    - "<center>&e&lServer Full?</center>"
+    - "<center>&6You can buy a reserved slot at &5&kA&b&lSTORE.MCEMPIRES.NET&5&kA</center>"
+    - "&r"
+  test3:
+    - "&r"
+    - "<center>&9&lJOIN OUR DISCORD AT:</center>"
+    - "<center>&fhttps://discord.gg/Ys6QHMe</center>"
+    - "<center>&9&l FOR RANK GIVEAWAYS</center>"
+    - "&r"

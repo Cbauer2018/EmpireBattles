@@ -1,9 +1,11 @@
 package com.tort.EmpireBattles.Events;
 
 import com.nametagedit.plugin.NametagEdit;
+import com.tort.EmpireBattles.EPlayer.EPlayer;
+import com.tort.EmpireBattles.Empires.Empire;
+import com.tort.EmpireBattles.Files.Colors;
 import com.tort.EmpireBattles.Files.EmpireDataManager;
-import com.tort.EmpireBattles.Items.EmpireGUI;
-import com.tort.EmpireBattles.Items.townGUI;
+import com.tort.EmpireBattles.Items.*;
 import com.tort.EmpireBattles.Main;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
@@ -37,12 +39,27 @@ public class PlayerRespawnEvents implements Listener {
             try {
 
                 Player player = event.getPlayer();
+
                 player.getInventory().clear();
-                String playerEmpire = plugin.playerTeams.get(event.getPlayer().getUniqueId().toString());
+                EPlayer ePlayer = plugin.ePlayerManager.getEPlayer(player);
+                Empire playerEmpire = plugin.empireManager.getEmpire(ePlayer.getEPlayerEmpire());
 
+                if(Objects.equals("NEUTRAL",ePlayer.getEPlayerEmpire())){
+                    Main.setTeam(player,"NEUTRAL");
+                    player.getInventory().clear();
+                    event.getPlayer().getEnderChest().clear();
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> player.teleport(Bukkit.getServer().getWorld("hubmap").getSpawnLocation()), 5);
+                    String prefix = plugin.getPlayerPrefix(player);
+                    NametagEdit.getApi().setNametag(event.getPlayer(),prefix + " " + ChatColor.WHITE ,   null  );
+                    event.getPlayer().getInventory().setItem(0, EmpireGUI.EmpireGUI);
+                    event.getPlayer().getInventory().setItem(8, Guide.Guide);
+                    plugin.empireParticlesAPI.setCosmeticItemSlot(event.getPlayer(), 4);
+                    player.setPlayerListName(prefix + ChatColor.WHITE + player.getName());
+                    return;
+                }
 
-                if (Objects.equals(plugin.EmpireStatus.get(playerEmpire), false)) {
-                    String team = Main.getTeam(player.getUniqueId().toString());
+                if (Objects.equals(playerEmpire.getIsAlive(), true)) {
+                    String prefix = plugin.getPlayerPrefix(player);
 
                     ItemStack sword = new ItemStack(Material.STONE_SWORD, 1);
                     ItemMeta swordMeta = sword.getItemMeta();
@@ -61,8 +78,11 @@ public class PlayerRespawnEvents implements Listener {
                     player.getInventory().setItem(1, pickaxe);
                     player.getInventory().setItem(2, bow);
                     player.getInventory().setItem(3, steak);
+                    player.getInventory().setItem(7, Cannon.cannon);
                     player.getInventory().setItem(8, townGUI.townGUI);
                     player.getInventory().setItem(9, arrows);
+                    event.getPlayer().getInventory().setItem(17, Guide.Guide);
+                    plugin.empireParticlesAPI.setCosmeticItemSlot(player,26);
 
                     ItemStack[] armor = new ItemStack[4];
                     armor[0] = new ItemStack(Material.LEATHER_BOOTS, 1);
@@ -74,32 +94,18 @@ public class PlayerRespawnEvents implements Listener {
                     LeatherArmorMeta meta1 = (LeatherArmorMeta) armor[1].getItemMeta();
                     LeatherArmorMeta meta2 = (LeatherArmorMeta) armor[2].getItemMeta();
                     LeatherArmorMeta meta3 = (LeatherArmorMeta) armor[3].getItemMeta();
-                    if (Objects.equals(team, "OTTOMANS")) {
 
-                        meta0.setColor(Color.YELLOW);
-                        meta1.setColor(Color.YELLOW);
-                        meta2.setColor(Color.YELLOW);
-                        meta3.setColor(Color.YELLOW);
+                    ChatColor chatColor = playerEmpire.getEmpireColor();
+                    String EmpirePrefix = playerEmpire.getTeamChatPrefix();
+                    Color color = Colors.translateChatColorToColor(chatColor);
 
-                    } else if (Objects.equals(team, "MONGOLS")) {
+                    NametagEdit.getApi().setNametag(player,prefix + " " + chatColor, " " + playerEmpire.getTeamChatPrefix());
+                    player.setPlayerListName(prefix + chatColor + playerEmpire.getTeamChatPrefix() + ChatColor.WHITE + player.getName());
+                    meta0.setColor(color);
+                    meta1.setColor(color);
+                    meta2.setColor(color);
+                    meta3.setColor(color);
 
-                        meta0.setColor(Color.BLUE);
-                        meta1.setColor(Color.BLUE);
-                        meta2.setColor(Color.BLUE);
-                        meta3.setColor(Color.BLUE);
-                    } else if (Objects.equals(team, "ROMANS")) {
-                        player.setPlayerListName(ChatColor.DARK_RED + "[Roman] " + ChatColor.WHITE + player.getName());
-                        meta0.setColor(Color.RED);
-                        meta1.setColor(Color.RED);
-                        meta2.setColor(Color.RED);
-                        meta3.setColor(Color.RED);
-                    } else {
-
-                        meta0.setColor(Color.PURPLE);
-                        meta1.setColor(Color.PURPLE);
-                        meta2.setColor(Color.PURPLE);
-                        meta3.setColor(Color.PURPLE);
-                    }
                     meta0.setUnbreakable(true);
                     meta1.setUnbreakable(true);
                     meta2.setUnbreakable(true);
@@ -116,22 +122,20 @@ public class PlayerRespawnEvents implements Listener {
                     player.getInventory().setHelmet(armor[3]);
                     player.updateInventory();
 
-
-                    Location location = Main.EmpireSpawns.get(team);
+                    Location location = playerEmpire.getEmpireSpawnPoint();
 
                     Bukkit.getScheduler().runTaskLater(plugin, () -> player.teleport(location), 5);
-                    String prefix = plugin.getPlayerPrefix(player);
-                    String empirePrefix = plugin.getEmpirePrefix(plugin.getTeam(player.getUniqueId().toString()));
-                    player.setPlayerListName(prefix + empirePrefix + ChatColor.WHITE + player.getName());
+
 
                 }else{
                     Main.setTeam(player,"NEUTRAL");
                     player.getInventory().clear();
                     event.getPlayer().getEnderChest().clear();
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> player.teleport(Bukkit.getServer().getWorld("world").getSpawnLocation()), 5);
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> player.teleport(Bukkit.getServer().getWorld("hubmap").getSpawnLocation()), 5);
                     String prefix = plugin.getPlayerPrefix(player);
                     NametagEdit.getApi().setNametag(event.getPlayer(),prefix + " " + ChatColor.WHITE ,   null  );
                     event.getPlayer().getInventory().setItem(0, EmpireGUI.EmpireGUI);
+                    event.getPlayer().getInventory().setItem(8, Guide.Guide);
                     player.setPlayerListName(prefix + ChatColor.WHITE + player.getName());
                 }
             }catch (Exception e){

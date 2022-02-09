@@ -1,16 +1,21 @@
 package com.tort.EmpireBattles.Commands;
 
 import com.nametagedit.plugin.NametagEdit;
-import com.sun.javafx.collections.MappingChange;
+import com.nametagedit.plugin.api.NametagAPI;
+import com.tort.EmpireBattles.EPlayer.EPlayer;
+import com.tort.EmpireBattles.Empires.Empire;
+import com.tort.EmpireBattles.Empires.EmpireManager;
+import com.tort.EmpireBattles.Files.Colors;
 import com.tort.EmpireBattles.Files.EmpireDataManager;
 import com.tort.EmpireBattles.Files.PlayerDataManager;
 
+import com.tort.EmpireBattles.Game.GameState;
+import com.tort.EmpireBattles.Items.Cannon;
+import com.tort.EmpireBattles.Items.Cosmetics;
+import com.tort.EmpireBattles.Items.Guide;
 import com.tort.EmpireBattles.Items.townGUI;
 import com.tort.EmpireBattles.Main;
-import org.bukkit.ChatColor;
-import org.bukkit.Color;
-import org.bukkit.Location;
-import org.bukkit.Material;
+import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -23,7 +28,7 @@ import java.util.*;
 
 public class Empires implements CommandExecutor {
     public EmpireDataManager empiredata;
-    public PlayerDataManager playerdata;
+
     private Main plugin;
     private ArrayList<Player> OTTOMANS = new ArrayList<>();
     private ArrayList<Player> MONGOLS = new ArrayList<>();
@@ -40,98 +45,240 @@ public class Empires implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender commandSender, Command command, String s, String[] strings) {
-
+        if(!(commandSender instanceof  Player)){
+            return true;
+        }
         Player player = (Player) commandSender;
-        this.playerdata = new PlayerDataManager(plugin);
+
         this.empiredata = new EmpireDataManager(plugin);
+
+        if(Objects.equals(strings.length,0)){
+            player.sendMessage(ChatColor.RED + "To join an empire use /empire join <empire>. EX: /empire join romans");
+            return true;
+        }
 
         if(command.getName().equalsIgnoreCase("empire")){ //If command is /empire
 
             if(strings[0].equals("join")){ // If first argument is join in /empire [command]
-                if(Objects.equals(strings[1].toUpperCase(),"OTTOMANS") || Objects.equals(strings[1].toUpperCase(),"MONGOLS") || Objects.equals(strings[1].toUpperCase(),"ROMANS") || Objects.equals(strings[1].toUpperCase(),"VIKINGS")) { //If second argument in /empire join [empire] equals an empire
-                        if(!Objects.equals(Main.getStatus(strings[1].toUpperCase()), true)) { // If empire is not captured
-                            joinEmpire(player, strings[1].toUpperCase()); // Join empire
-                        }else{
-                            player.sendMessage(ChatColor.RED + strings[1].toUpperCase() + " have been captured. Select another Empire"); //notify player empire is captured
-                        }
+                if(strings.length < 2){
+                    player.sendMessage(ChatColor.RED + "To join an empire use /empire join <empire>. EX: /empire join romans");
+                    return true;
+                }
+                if(!Objects.equals(strings[1],null)) {
+                    if(plugin.gameInstance.getGameState() == GameState.IN_PROCESS) {
+                        joinEmpire(player, strings[1].toUpperCase());
+                    }else{
+
+                        player.sendMessage(ChatColor.GOLD + "Wait for the game to start!");
+                    }
+                    return true;// Join empire
                 }else{
-                    player.sendMessage(ChatColor.RED + "Invalid empire name."); //Notify player that the empire name is not valid
+                    player.sendMessage(ChatColor.RED + "To join an empire use /empire join <empire>. EX: /empire join romans");
+                    return true;
+                }
+            }
+
+
+
+            if(strings[0].equals("create")){
+                if(!player.hasPermission("empires.admin")){
+                    player.sendMessage(ChatColor.RED + "You do not have permission!");
+                    return true;
+                }
+                if(strings.length == 2){
+                    Empire empire = new Empire(strings[1]);
+                    empire.setAlive(true);
+                    plugin.empireManager.addEmpire(empire);
+                    player.sendMessage(ChatColor.BLUE + strings[1].toUpperCase() + " has been created!" + ChatColor.GOLD + " " + strings[1].toUpperCase() + ChatColor.BLUE + " is the reference for this empire.");
+                    return true;
+                }else{
+                    player.sendMessage(ChatColor.RED + "Invalid use of command. To create an empire use: /empire create <Empire Reference>");
+                    return true;
+                }
+            }
+
+            if(strings[0].equals("delete")){
+                if(!player.hasPermission("empires.admin")){
+                    player.sendMessage(ChatColor.RED + "You do not have permission!");
+                    return true;
+                }
+                if(strings.length == 2){
+                    plugin.empireManager.removeEmpire(strings[1]);
+                    if(this.empiredata.getConfig().contains("Empires." + strings[1].toUpperCase())){
+                        this.empiredata.getConfig().set("Empires." + strings[1].toUpperCase(), null);
+                        this.empiredata.saveConfig();
+                    }
+
+                    player.sendMessage(ChatColor.RED + strings[1].toUpperCase() + " has been removed from empires.");
+                    return true;
+                }else{
+                    player.sendMessage(ChatColor.RED + "Empire not found. Use /empire delete <Empire Reference>");
+                    return true;
+                }
+            }
+
+            if(strings[0].equals("list")){
+                if(!player.hasPermission("empires.admin")){
+                    player.sendMessage(ChatColor.RED + "You do not have permission!");
+                    return true;
+                }
+                ArrayList<Empire> empires = plugin.empireManager.getActiveEmpires();
+                player.sendMessage(ChatColor.GRAY+ "----*" + ChatColor.DARK_RED + "MC" + ChatColor.GOLD + "Empires" + ChatColor.GRAY+ "*----" );
+                player.sendMessage(ChatColor.DARK_GRAY + "Empire List: ");
+                for(Empire empire : empires){
+                    player.sendMessage(ChatColor.GOLD+ empire.getREFERENCE());
+                }
+                return true;
+            }
+
+            //Setters
+            if(strings[1].equals("set")){
+                if(!player.hasPermission("empires.admin")){
+                    player.sendMessage(ChatColor.RED + "You do not have permission!");
+                    return true;
+                }
+                if(Objects.equals(plugin.empireManager.getEmpire(strings[0].toUpperCase()),null)){
+                    player.sendMessage(ChatColor.RED + "Invalid Empire Reference.");
+                    return true;
+                }
+                Empire empire = plugin.empireManager.getEmpire(strings[0].toUpperCase());
+
+                if(strings[2].equals("name")){
+                   if(strings.length >= 4){
+                       StringJoiner joiner = new StringJoiner(" ");
+                       for(int i = 3; i < strings.length;i++){
+                           joiner.add(strings[i]);
+                       }
+                       String name = joiner.toString();
+                       empire.setName(name);
+                       player.sendMessage(ChatColor.BLUE + "Empire " + empire.getREFERENCE() + " name set to:" + ChatColor.GRAY + name);
+                   }
+                   return true;
+                }
+
+                if(strings[2].equals("color")){
+                    if(strings.length == 4){
+                        ChatColor color = Colors.getChatColorByCode(strings[3]);
+                        empire.setEmpireColor(color);
+                        player.sendMessage(ChatColor.BLUE + "The color for " + empire.getREFERENCE() + " is set to: " + color + "THIS");
+                        player.sendMessage(ChatColor.GRAY + "Info: If the color format is incorrect the default color is white.");
+                    }
+                    return true;
+                }
+
+
+                if(strings[2].equals("empireprefix")){
+                    if(strings.length == 4){
+                        String empirePrefix = ChatColor.translateAlternateColorCodes('&', strings[3]);
+                        empire.setEmpirePrefix(empirePrefix);
+                        player.sendMessage(ChatColor.BLUE + "The empire prefix for " + empire.getREFERENCE() + " is set to: " + empirePrefix);
+
+                    }
+                    return true;
+                }
+                if(strings[2].equals("teamchatprefix")){
+                    if(strings.length == 4){
+                        String teamChatPrefix = ChatColor.translateAlternateColorCodes('&', strings[3]);
+                        empire.setTeamChatPrefix(teamChatPrefix);
+                        player.sendMessage(ChatColor.BLUE + "The team chat prefix for " + empire.getREFERENCE() + " is set to: " + teamChatPrefix);
+
+                    }
+                    return true;
+                }
+
+                if(strings[2].equals("capture")){
+                        Location captureLocation = player.getLocation().add(0, 3, 0);
+                        empire.setEmpireCaptureZone(captureLocation);
+                        player.sendMessage(ChatColor.BLUE + "The capture zone for " + empire.getREFERENCE() + " has been set!");
+                    return true;
+                }
+
+                if(strings[2].equals("spawn")){
+                        Location empireSpawn = new Location(player.getWorld(),player.getLocation().getX(), player.getLocation().getY(), player.getLocation().getZ(),player.getLocation().getYaw(),player.getLocation().getPitch());
+                       empire.setEmpireSpawnPoint(empireSpawn);
+                        player.sendMessage(ChatColor.BLUE + "The spawn for " + empire.getREFERENCE() + " has been set!");
+
+                    return true;
+                }
+                return true;
+            }
+            //Getters
+            if(strings[1].equals("get")){
+                if(!player.hasPermission("empires.admin")){
+                    player.sendMessage(ChatColor.RED + "You do not have permission!");
+                    return true;
+                }
+                if(Objects.equals(plugin.empireManager.getEmpire(strings[0]),null)){
+                    player.sendMessage(ChatColor.RED + "Invalid Empire Reference.");
+                    return true;
+                }
+                Empire empire = plugin.empireManager.getEmpire(strings[0]);
+
+                if(strings[2].equals("name")){
+                    player.sendMessage(ChatColor.GOLD + empire.getREFERENCE() + "'S name is: " + empire.getName());
+                    return true;
+                }
+
+                if(strings[2].equals("color")){
+                    player.sendMessage(ChatColor.GOLD + empire.getREFERENCE() + "'S color is: " + empire.getEmpireColor() + "THIS");
+                    return true;
+                }
+
+                if(strings[2].equals("empireprefix")){
+                    player.sendMessage(ChatColor.GOLD + empire.getREFERENCE() + "'S prefix is: " + empire.getEmpirePrefix());
+                    return true;
+                }
+                if(strings[2].equals("teamprefix")){
+                    player.sendMessage(ChatColor.GOLD + empire.getREFERENCE() + "'S team prefix is: " + empire.getTeamChatPrefix());
+                    return true;
                 }
 
             }
 
-        }
-
-
-        //SET SPAWN COMMAND
-        if(command.getName().equalsIgnoreCase("setspawn")){ // if command is /setSpawn
-            try{
-                Main.setStatus(strings[0].toUpperCase(), false);
-                empiredata.getConfig().set(strings[0].toUpperCase() + ".spawnpoint" + ".X", player.getLocation().getX());
-                empiredata.getConfig().set(strings[0].toUpperCase() + ".spawnpoint" + ".Y", player.getLocation().getY());
-                empiredata.getConfig().set(strings[0].toUpperCase() + ".spawnpoint" + ".Z", player.getLocation().getZ());    //loads spawn values into the file
-                empiredata.getConfig().set(strings[0].toUpperCase() + ".spawnpoint" + ".yaw", player.getLocation().getYaw());
-                empiredata.getConfig().set(strings[0].toUpperCase() + ".spawnpoint" + ".pitch", player.getLocation().getPitch());
-                empiredata.saveConfig();
-                Location empireSpawn = new Location(player.getWorld(),player.getLocation().getX(), player.getLocation().getY(), player.getLocation().getZ(),player.getLocation().getYaw(),player.getLocation().getPitch());
-                Main.EmpireSpawns.put(strings[0].toUpperCase(), empireSpawn);
-                player.sendMessage("Spawn point for " + strings[0] + " has been set."); //notify player that the spawn point is set.
-            }catch (Exception e){
-                player.sendMessage("Invalid Empire");
-                player.sendMessage(e.toString());
+            if(strings[0] != null){
+                player.sendMessage(ChatColor.RED + "To join and empire use /empire join <empire>. EX: /empire join romans");
+                return true;
             }
 
-        }
+            player.sendMessage(ChatColor.RED + "To join and empire use /empire join <empire>. EX: /empire join romans");
+            return true;
 
-
-        //SPAWN COMMAND
-
-
-
-        if(command.getName().equalsIgnoreCase("setcapture")){ // /spawn for empire
-            if(Objects.equals(strings[0].toUpperCase(),"OTTOMANS") || Objects.equals(strings[0].toUpperCase(),"MONGOLS") || Objects.equals(strings[0].toUpperCase(),"ROMANS") || Objects.equals(strings[0].toUpperCase(),"VIKINGS")) {
-                Main.EmpireZones.put(strings[0].toUpperCase(), player.getLocation().add(0, 3, 0));
-                player.sendMessage(ChatColor.BLUE + "Capture Zone for " + strings[0] + " created!");
             }
-        }
         return true;
     }
 
 
     public void joinEmpire(Player player, String empire){
-        this.playerdata = new PlayerDataManager(plugin);
+
         this.empiredata = new EmpireDataManager(plugin);
 
+         Empire playerEmpire = plugin.empireManager.getEmpire(empire.toUpperCase());
+        EPlayer ePlayer = plugin.ePlayerManager.getEPlayer(player);
 
-        if(Objects.equals(empire.toUpperCase(),"OTTOMANS") || Objects.equals(empire.toUpperCase(),"MONGOLS") || Objects.equals(empire.toUpperCase(),"ROMANS") || Objects.equals(empire.toUpperCase(),"VIKINGS")) { //If second argument in /empire join [empire] equals an empire
-            if(!Objects.equals(Main.getStatus(empire.toUpperCase()), true)) {
-                if(Objects.equals(empire.toUpperCase(),Main.getTeam(player.getUniqueId().toString()))){
+        if(!Objects.equals(playerEmpire,null)) { //If second argument in /empire join [empire] equals an empire
+            if(Objects.equals(playerEmpire.getIsAlive(), true)) {
+
+                if(Objects.equals(playerEmpire.getREFERENCE(),ePlayer.getEPlayerEmpire())){
                     player.sendMessage(ChatColor.BLUE + "You are already on this team!");
                     return;
                 }
 
-                ArrayList<String> unavailableTeams = unavailableTeams();
-
-                if(unavailableTeams.contains(empire.toUpperCase())){
-                    player.sendMessage(ChatColor.RED + "Teams are unbalanced please wait for teams to balance or select another team.");
-                    player.sendMessage( ChatColor.GOLD + " Purchase a balance bypass at " + ChatColor.GREEN +"STORE.MCEMPIRES.NET");
-                    return;
+                if(!player.hasPermission("empires.server.balancebypass")) {
+                    ArrayList<String> unavailableTeams = unavailableTeams();
+                    if (unavailableTeams.contains(empire.toUpperCase())) {
+                        player.sendMessage(ChatColor.RED + "Empires are unbalanced please wait for empires to balance or select another empire.");
+                        player.sendMessage(ChatColor.GOLD + " Purchase a rank to bypass the balance at " + ChatColor.GREEN + "STORE.MCEMPIRES.NET");
+                        return;
+                    }
                 }
+                ePlayer.setEPlayerEmpire(playerEmpire.getREFERENCE());
+                removePlayer(player);
+                playerEmpire.getEmpirePlayerList().add(player);
 
-                Main.setTeam(player, empire.toUpperCase());
-        removePlayer(player);
-        addPlayer(player, empire.toUpperCase());
         String prefix = plugin.getPlayerPrefix(player);
         player.getEnderChest().clear();
-        playerdata.getConfig().set("players." + player.getUniqueId().toString() + ".empire", empire.toUpperCase());
-        playerdata.saveConfig();
-        playerdata.reloadConfig();
-
-        empiredata.getConfig().set(empire.toUpperCase() + ".players." + player.getUniqueId().toString() + ".player_name", player.getDisplayName());
-        empiredata.saveConfig();
-        empiredata.reloadConfig();
-
         player.getInventory().clear();
+
         ItemStack sword = new ItemStack(Material.STONE_SWORD, 1);
         ItemMeta swordMeta = sword.getItemMeta();
         swordMeta.setUnbreakable(true);
@@ -150,7 +297,11 @@ public class Empires implements CommandExecutor {
         player.getInventory().setItem(2, bow);
         player.getInventory().setItem(3, steak);
         player.getInventory().setItem(8, townGUI.townGUI);
+        player.getInventory().setItem(7, Cannon.cannon);
         player.getInventory().setItem(9, arrows);
+        player.getInventory().setItem(17, Guide.Guide);
+        plugin.empireParticlesAPI.setCosmeticItemSlot(player,26);
+
 
         ItemStack[] armor = new ItemStack[4];
         armor[0] = new ItemStack(Material.LEATHER_BOOTS, 1);
@@ -162,35 +313,18 @@ public class Empires implements CommandExecutor {
         LeatherArmorMeta meta1 = (LeatherArmorMeta) armor[1].getItemMeta();
         LeatherArmorMeta meta2 = (LeatherArmorMeta) armor[2].getItemMeta();
         LeatherArmorMeta meta3 = (LeatherArmorMeta) armor[3].getItemMeta();
-        if (empire.toUpperCase().equals("OTTOMANS")) {
-            NametagEdit.getApi().setNametag(player,prefix + " " + ChatColor.YELLOW ,   null  );
-            player.setPlayerListName(prefix + ChatColor.YELLOW + "[Ottoman] " + ChatColor.WHITE + player.getName());
-            meta0.setColor(Color.YELLOW);
-            meta1.setColor(Color.YELLOW);
-            meta2.setColor(Color.YELLOW);
-            meta3.setColor(Color.YELLOW);
-        } else if (empire.toUpperCase().equals("MONGOLS")) {
-            NametagEdit.getApi().setNametag(player,prefix + " " + ChatColor.DARK_BLUE ,   null  );
-            player.setPlayerListName(prefix +ChatColor.DARK_BLUE + "[Mongol] " + ChatColor.WHITE + player.getName());
-            meta0.setColor(Color.BLUE);
-            meta1.setColor(Color.BLUE);
-            meta2.setColor(Color.BLUE);
-            meta3.setColor(Color.BLUE);
-        } else if (empire.toUpperCase().equals("ROMANS")) {
-            NametagEdit.getApi().setNametag(player,prefix + " " + ChatColor.DARK_RED ,   null  );
-            player.setPlayerListName(prefix+ChatColor.DARK_RED + "[Roman] " + ChatColor.WHITE + player.getName());
-            meta0.setColor(Color.RED);
-            meta1.setColor(Color.RED);
-            meta2.setColor(Color.RED);
-            meta3.setColor(Color.RED);
-        } else {
-            NametagEdit.getApi().setNametag(player,prefix + " " + ChatColor.DARK_PURPLE ,   null  );
-            player.setPlayerListName(prefix +ChatColor.DARK_PURPLE + "[Viking] " + ChatColor.WHITE + player.getName());
-            meta0.setColor(Color.PURPLE);
-            meta1.setColor(Color.PURPLE);
-            meta2.setColor(Color.PURPLE);
-            meta3.setColor(Color.PURPLE);
-        }
+
+        ChatColor chatColor = playerEmpire.getEmpireColor();
+        String EmpirePrefix = playerEmpire.getTeamChatPrefix();
+        Color color = Colors.translateChatColorToColor(chatColor);
+
+        NametagEdit.getApi().setNametag(player,prefix + " " + chatColor, " " + playerEmpire.getTeamChatPrefix());
+        player.setPlayerListName(prefix + chatColor + EmpirePrefix + ChatColor.WHITE + player.getName());
+        meta0.setColor(color);
+        meta1.setColor(color);
+        meta2.setColor(color);
+        meta3.setColor(color);
+
         meta0.setUnbreakable(true);
         meta1.setUnbreakable(true);
         meta2.setUnbreakable(true);
@@ -207,11 +341,11 @@ public class Empires implements CommandExecutor {
         player.getInventory().setHelmet(armor[3]);
         player.updateInventory();
 
-        Location location = Main.EmpireSpawns.get(empire.toUpperCase());
+        Location location = playerEmpire.getEmpireSpawnPoint();
         player.teleport(location);
-
-
-        player.sendMessage("You have joined the " + empireChatColor(empire.toUpperCase()) + empire.toUpperCase() + ChatColor.WHITE + " !");
+        plugin.getScoreboardInstance().addPlayer(player);
+        player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1.0f, 1.0f);
+        player.sendMessage("You have joined " + playerEmpire.getEmpireColor() + playerEmpire.getName() + ChatColor.WHITE + " !");
 
             }else{
                 player.sendMessage(ChatColor.RED + empire.toUpperCase() + " have been captured. Select another Empire"); //notify player empire is captured
@@ -222,66 +356,15 @@ public class Empires implements CommandExecutor {
 
     }
 
-  public static ChatColor empireChatColor(String empire){
-        if(Objects.equals(empire.toUpperCase(), "OTTOMANS")){
-            return ChatColor.YELLOW;
-        }
-
-        if(Objects.equals(empire.toUpperCase(), "MONGOLS")){
-            return ChatColor.DARK_BLUE;
-        }
-
-      if(Objects.equals(empire.toUpperCase(), "ROMANS")){
-          return ChatColor.DARK_RED;
-      }else{
-          return ChatColor.DARK_PURPLE;
-      }
-
-
-  }
-
-  public void addPlayer(Player player , String empire){
-        if(Objects.equals(empire,"OTTOMANS")){
-            OTTOMANS.add(player);
-            return;
-        }
-
-      if(Objects.equals(empire,"MONGOLS")){
-          MONGOLS.add(player);
-          return;
-      }
-
-      if(Objects.equals(empire,"ROMANS")){
-          ROMANS.add(player);
-          return;
-      }
-
-      if(Objects.equals(empire,"VIKINGS")){
-          VIKINGS.add(player);
-          return;
-      }
-  }
 
   public void removePlayer(Player player){
-        if(OTTOMANS.contains(player)){
-            OTTOMANS.remove(player);
-            return;
+        ArrayList<Empire> empires = plugin.empireManager.getActiveEmpires();
+
+        for(Empire empire : empires){
+            if(empire.getEmpirePlayerList().contains(player)){
+                empire.getEmpirePlayerList().remove(player);
+            }
         }
-
-        if(MONGOLS.contains(player)){
-            MONGOLS.remove(player);
-            return;
-        }
-
-      if(ROMANS.contains(player)){
-          ROMANS.remove(player);
-          return;
-      }
-
-      if(VIKINGS.contains(player)){
-          VIKINGS.remove(player);
-          return;
-      }
   }
 
   public ArrayList<Player> getPlayerList(String empire){
@@ -299,30 +382,20 @@ public class Empires implements CommandExecutor {
 
   public ArrayList<String> unavailableTeams(){
         ArrayList<String> unavailableTeams = new ArrayList<>();
+        ArrayList<Empire> empires = plugin.empireManager.getActiveEmpires();
       Map<String,Integer> teams = new HashMap<>();
-      int ottomans = OTTOMANS.size();
-      int mongols = MONGOLS.size();
-      int romans = ROMANS.size();
-      int vikings = VIKINGS.size();
 
-        if(Objects.equals(Main.getStatus("OTTOMANS"),false)){
-            teams.put("OTTOMANS",ottomans);
-        }
-      if(Objects.equals(Main.getStatus("MONGOLS"),false)){
-          teams.put("MONGOLS", mongols);
-      }
-      if(Objects.equals(Main.getStatus("ROMANS"),false)){
-          teams.put("ROMANS",romans);
-      }
-      if(Objects.equals(Main.getStatus("VIKINGS"),false)){
-         teams.put("VIKINGS",vikings);
+      for(Empire empire: empires){
+          boolean isAlive = empire.getIsAlive();
+          if(isAlive)
+              teams.put(empire.getREFERENCE(),empire.getEmpirePlayerList().size());
       }
 
       for(Map.Entry<String, Integer> entry : teams.entrySet()){
           String key=entry.getKey();
           int teamSize=entry.getValue();
           for(Map.Entry<String, Integer> team : teams.entrySet()){
-              if(teamSize >= (team.getValue() + 5)){
+              if(teamSize >= (team.getValue() + 4)){
                     unavailableTeams.add(key);
               }
           }
@@ -336,6 +409,9 @@ public class Empires implements CommandExecutor {
 
         return unavailableTeams;
   }
+
+
+
 
 
 }

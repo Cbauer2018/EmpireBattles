@@ -1,4 +1,5 @@
 package com.tort.EmpireBattles.Game;
 
-public class GameState {
+public enum GameState {
+    PREGAME , IN_PROCESS , STOPPED
 }

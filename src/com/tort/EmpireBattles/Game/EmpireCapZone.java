@@ -2,15 +2,21 @@ package com.tort.EmpireBattles.Game;
 
 import com.nametagedit.plugin.NametagEdit;
 import com.sun.org.apache.bcel.internal.generic.FALOAD;
+import com.tort.EmpireBattles.EPlayer.EPlayer;
+import com.tort.EmpireBattles.Empires.Empire;
 import com.tort.EmpireBattles.Items.EmpireGUI;
 import com.tort.EmpireBattles.Main;
+import com.tort.EmpireBattles.Towns.Town;
+import com.tort.TortMessages;
 import org.bukkit.*;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.entity.*;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.FireworkMeta;
 
+import javax.mail.internet.AddressException;
 import java.util.*;
 import java.util.logging.Level;
 
@@ -20,96 +26,121 @@ import static org.bukkit.Bukkit.getServer;
 
 public class EmpireCapZone {
     private final String empire;
+    private final String REFERENCE;
     private final Location capLocation;
     private ArmorStand armorStand;
     private List<Player> lastCapping = new ArrayList<>();
     private BossBar bar;
     private String lastCapturingEmpire = "NEUTRAL";
     private boolean broadcastMessage = true;
-    private boolean isCaptured = false;
+    private boolean isAlive = true;
     private double score = 0;
     private Main plugin;
     private StatHandler statHandler;
     private final int capturetime = 15;
+    private Empire captureEmpire;
+    private boolean firstBroadcast = true;
 
     double time = 1.0 / (30);
 
-    public EmpireCapZone(String empire, Location capLocation, Boolean isCaptured , Main plugin){
+    public EmpireCapZone(String empire, String REFERENCE, Location capLocation, Boolean isAlive , Main plugin){
         this.empire = empire;
         this.capLocation = capLocation;
-        this.isCaptured = isCaptured;
+        this.isAlive = isAlive;
         this.plugin = plugin;
+        this.REFERENCE = REFERENCE;
+        captureEmpire = plugin.empireManager.getEmpire(REFERENCE);
 
     }
 
 
 
-    public static Location getEmpireCap(String empire ){
-        return  Main.EmpireZones.get(empire);
-    }
 
 
 
 
-    void setCaptureZone(String empire){
-        if(!isCaptured) {
+    void setCaptureZone(){
+
+        if(captureEmpire.getIsAlive()) {
+
+            capLocation.getChunk().load();
+            for (Entity e : Objects.requireNonNull(capLocation.getWorld()).getNearbyEntities(capLocation,5,2.5,5)) { //removes previous armorstand
+                if(!(e instanceof Player)) {
+                    e.remove();
+                }
+            }
+
+
             ArmorStand name;
-
-            name = (ArmorStand) getEmpireCap(empire).getWorld().spawnEntity(getEmpireCap(empire), EntityType.ARMOR_STAND);
-            name.setCustomName(empire + " CAPTURE ZONE");
+            name = (ArmorStand) capLocation.getWorld().spawnEntity(capLocation, EntityType.ARMOR_STAND);
+            name.setCustomName(empire + " capture zone");
 
             name.setCustomNameVisible(true);
             name.setVisible(false);
             name.setGravity(false);
             name.setMarker(true);
+
             armorStand = name;
-            bar = Bukkit.createBossBar(ChatColor.WHITE + " CAPTURE ZONE IS SECURE.", BarColor.GREEN, BarStyle.SOLID);
+
+            capLocation.getChunk().unload();
+
+            bar = Bukkit.createBossBar(ChatColor.DARK_AQUA + "CAPTURING " + empire, BarColor.BLUE, BarStyle.SOLID);
             bar.setVisible(true);
-            bar.setProgress(1.0);
-            statHandler = plugin.getStatHandler();
+            bar.setProgress(0.0);
+
+
         }
 
     }
 
-    public void checkCapture(String empire){
-        if(!isCaptured) {
-
-            for (Map.Entry<String, String> entry : Main.CaptureOwners.entrySet()) {  //Checks if Empire owns any towns. If no towns are owned empire can be captured
-                if (Objects.equals(entry.getValue(), empire)) {
-                    broadcastMessage = true;
-                    for (Player p : lastCapping) { // Remove previous players
-                        bar.removePlayer(p);
+    public void checkCapture(){
+        if(captureEmpire.getIsAlive()) {
+                for(Town town : plugin.townManager.getActiveTowns()){
+                    if(Objects.equals(town.getOwner(), REFERENCE)){
+                        broadcastMessage = true;
+                        for (Player p : lastCapping) { // Remove previous players
+                            bar.removePlayer(p);
+                        }
+                        captureEmpire.setCanCapture(false);
+                        plugin.empireManager.getEmpire(REFERENCE).getGate().setHasProgress(false);
+                        plugin.empireManager.getEmpire(REFERENCE).getGate().setNewOwner(false);
+                        bar.setColor(BarColor.GREEN);
+                        bar.setTitle(ChatColor.WHITE + " CAPTURE ZONE IS SECURE.");
+                        bar.setProgress(1.0);
+                        score = 0;
+                        firstBroadcast = false;
+                        return;
                     }
-                    bar.setColor(BarColor.GREEN);
-                    bar.setTitle(ChatColor.WHITE + " CAPTURE ZONE IS SECURE.");
-                    bar.setProgress(1.0);
-                    score = 0;
-
-                    return;
                 }
 
-            }
             try {
-                if (broadcastMessage) {
+
+                if (broadcastMessage && !firstBroadcast) {
+
+                    captureEmpire.setCanCapture(true);
                     Collection<? extends Player> players = getServer().getOnlinePlayers();
                     for (Player player : players) {
-                        player.sendMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.GOLD + " THE " + empire + " CAN BE CAPTURED!");
+                        player.sendMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + captureEmpire.getEmpireColor() + captureEmpire.getName() + "'s"+ ChatColor.GOLD + " capital can be captured!");
                     }
                     broadcastMessage = false;
                 }
+
+
+
+                captureEmpire.setCanCapture(true);
                 int EMPIRE = 0;
                 int ENEMIES = 0;
 
 
                 final List<Player> playersOnPoint = new ArrayList<>(getNearbyPlayers());
                 for (Player p : playersOnPoint) { //Add new players to bar
-                    if (!lastCapping.contains(p))
+                    String pTeam = plugin.ePlayerManager.getEPlayer(p).getEPlayerEmpire();
+                    if (!lastCapping.contains(p)  && !Objects.equals("NEUTRAL",pTeam))
                         bar.addPlayer(p);
-                    String pTeam = Main.getTeam(p.getUniqueId().toString());
-                    if (Objects.equals(pTeam, empire)) {
+                    if (Objects.equals(pTeam, REFERENCE)) {
                         EMPIRE++;
                     }
-                    if (!Objects.equals(pTeam, empire)) {
+                    if (!Objects.equals(pTeam, REFERENCE) && !Objects.equals("NEUTRAL",pTeam)) {
                         ENEMIES++;
                     }
 
@@ -119,7 +150,7 @@ public class EmpireCapZone {
                         bar.removePlayer(p);
                 }
                 lastCapping = new ArrayList<>(playersOnPoint);
-                if (!isCaptured) {
+                if (isAlive) {
                     if (EMPIRE > 0 || ENEMIES > 0) {
                         if (EMPIRE > ENEMIES) {
                             if(score > 0){
@@ -129,33 +160,58 @@ public class EmpireCapZone {
                                 score -= 2;
 
                             }else {
+                                plugin.empireManager.getEmpire(REFERENCE).getGate().setHasProgress(false);
+                                plugin.empireManager.getEmpire(REFERENCE).getGate().setNewOwner(false);
                                 bar.setColor(BarColor.GREEN);
                                 bar.setTitle(ChatColor.WHITE + "The Capital is secure!");
                                 bar.setProgress(1.0);
                                score = 0;
                             }
                         } else if (ENEMIES > EMPIRE) {
+                            if(!plugin.empireManager.getEmpire(REFERENCE).getGate().isGateDestroyed()){
+                                bar.setColor(BarColor.RED);
+                                bar.setTitle(ChatColor.WHITE + "The gate must be destroyed to capture!");
+                                bar.setProgress(1.0);
+                                return;
+                            }
+
+                            plugin.empireManager.getEmpire(REFERENCE).getGate().setHasProgress(true);
                             bar.setColor(BarColor.BLUE);
-                            bar.setTitle(ChatColor.DARK_AQUA + "CAPTURING THE " + empire);
+                            bar.setTitle(ChatColor.DARK_AQUA + "Capturing " + captureEmpire.getEmpireColor() + captureEmpire.getName());
+
+                            if(score == 0){
+                                Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + captureEmpire.getEmpireColor() + captureEmpire.getName() + ChatColor.GOLD + " is being captured!");
+                            }
+
                             score++;
                             double progress = abs(score) / capturetime;
                             bar.setProgress(progress);
                             if (score == capturetime) {
-                                isCaptured = true;
+                                isAlive = false;
                                 bar.removeAll();
-                                removeEmpire(empire);
-                                Main.setStatus(empire, true); //Set status to true. True == Captured
+                                removeEmpire(captureEmpire);
+                                captureEmpire.setAlive(false);
                                 spawnFireworks(capLocation);
+                                score = 0;
+                                plugin.empireManager.getEmpire(REFERENCE).getGate().setHasProgress(false);
+                                plugin.empireManager.getEmpire(REFERENCE).getGate().setNewOwner(true);
+                                plugin.setDynmapIconFire(captureEmpire);
                                 for(Player p: playersOnPoint){
-                                    String pTeam = Main.getTeam(p.getUniqueId().toString());
-                                    if (!Objects.equals(pTeam, empire.toUpperCase())) {
-                                        statHandler.addCapture(p);
-                                        statHandler.playerdata.saveConfig();
+                                    EPlayer ePlayer = plugin.ePlayerManager.getEPlayer(p);
+                                    String playerEmpire = ePlayer.getEPlayerEmpire();
+                                    if(!Objects.equals(playerEmpire, REFERENCE)){
+                                        int TotalCaptures = ePlayer.getTotalCaptures();
+                                        int GameCaptures = ePlayer.getGameCaptures();
+                                        TotalCaptures++;
+                                        GameCaptures++;
+                                        ePlayer.setTotalCaptures(TotalCaptures);
+                                        ePlayer.setGameCaptures(GameCaptures);
+                                        p.sendMessage(ChatColor.GREEN + "+30 gold for capturing an empire!");
+                                        p.getInventory().addItem(new ItemStack(Material.GOLD_INGOT,30));
                                     }
                                 }
 
-                                statHandler.SaveData();
-                                if(Main.isGameDone()){
+                                if(isGameDone()){
                                     endGame();
                                 }
                             }
@@ -203,19 +259,19 @@ public class EmpireCapZone {
 
     }
 
-    public void removeEmpire(String empire){
+    public void removeEmpire(Empire empire){
         //Send all players of empire back to spawn
         //disable capture zone, maybe do if isCapture in checkCapture
         //change data of all players in empire safely
-
+        empire.getEmpirePlayerList().clear();
         Collection<? extends Player> players = getServer().getOnlinePlayers();
         for (Player player : players) {
-            player.sendMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.GOLD + empire + " HAVE BEEN ELIMINATED!" );
-           if(Objects.equals(Main.getTeam(player.getUniqueId().toString()), empire)){
-               Main.setTeam(player,"NEUTRAL");
+            player.sendMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + empire.getEmpireColor() + empire.getName() + ChatColor.GOLD + " has been eliminated!" );
+           if( Objects.equals(plugin.ePlayerManager.getEPlayer(player).getEPlayerEmpire(), REFERENCE)){
+               plugin.ePlayerManager.getEPlayer(player).setEPlayerEmpire("NEUTRAL");
                player.getInventory().clear();
                player.getEnderChest().clear();
-               player.teleport(Bukkit.getServer().getWorld("world").getSpawnLocation());
+               player.teleport(Bukkit.getServer().getWorld("hubmap").getSpawnLocation());
                player.sendMessage(ChatColor.RED + "Your empire has been captured..." + ChatColor.GREEN + "Choose another empire!");
                String prefix = plugin.getPlayerPrefix(player);
                NametagEdit.getApi().setNametag(player,prefix + " " + ChatColor.WHITE ,   null  );
@@ -229,52 +285,37 @@ public class EmpireCapZone {
 
     }
 
-    private void endGame(){
-        String winner = Main.getWinner();
+    private void endGame()  {
+        Empire winner = getWinner();
 
+        Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + winner.getEmpireColor() + "" + ChatColor.BOLD + winner.getName() + ChatColor.WHITE + "" + ChatColor.BOLD + " has won empire battles!");
+        Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
+            plugin.resetGame();
+            plugin.gameInstance.pregame();
+        }, 200);
+    }
 
-        if(Objects.equals(winner,"OTTOMANS")){
-
-                Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.YELLOW + winner + ChatColor.WHITE + " HAVE WON THE GAME!");
-
-        }else if(Objects.equals(winner,"MONGOLS")){
-
-            Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.DARK_BLUE + winner + ChatColor.WHITE + " HAVE WON THE GAME!");
-
-        }else if(Objects.equals(winner,"ROMANS")){
-
-            Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.DARK_RED + winner + ChatColor.WHITE + " HAVE WON THE GAME!");
-
-
-        }else{
-
-            Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.DARK_PURPLE + winner + ChatColor.WHITE + " HAVE WON THE GAME!");
-
-        }
-
-
-        Bukkit.getServer().broadcastMessage(ChatColor.DARK_RED + "[" + ChatColor.GOLD + "MCE" + ChatColor.DARK_RED + "] " + ChatColor.GREEN+ "THANK YOU FOR PLAYING!" + ChatColor.GOLD + " The server will be shutting down in 30 seconds.");
-
-
-
-        Bukkit.getScheduler().runTaskLater(plugin, () -> Bukkit.getServer().setWhitelist(true), 600);
-
-
-        Collection<? extends Player> players = getServer().getOnlinePlayers();
-        for (Player player : players) {
-            if(!Bukkit.getServer().getWhitelistedPlayers().contains(player)){
-                Bukkit.getScheduler().runTaskLater(plugin, () -> player.kickPlayer("Thank you for playing!"), 605);
+    public  Boolean isGameDone(){
+        int empiresAlive = 0;
+        for(Empire e : plugin.empireManager.getActiveEmpires()){
+            if(e.getIsAlive()){
+                empiresAlive++;
             }
         }
 
+        if(empiresAlive == 1){
+            return true;
+        }
+        return false;
+    }
 
-
-
-
-
-
-
-
+    public Empire getWinner(){
+        for(Empire e : plugin.empireManager.getActiveEmpires()){
+            if(e.getIsAlive()){
+                return e;
+            }
+        }
+        return  null;
     }
 
     }

@@ -10,17 +10,57 @@ permissions:
     description: Allows players to bypass the full server limit.
   Empires.server.balancebypass:
     description: Allows players to bypass the balancing system of teams.
-
+  Empires.admin:
+    description: Admin permission.
+  empires.build:
+    description: Build Permission
+  empires.particles.flame:
+    description: Permission to flame particle
+  empires.particles.water:
+    description: Permission to water particle
+  empires.particles.chief:
+    description: Permission to chief particle
+  empires.particles.commander:
+    description: Permission to commander particle
+  empires.particles.general:
+    description: Permission to general particle
+  empires.particles.emperor:
+    description: Permission to emperor particle
+  empires.arrows.flame:
+    description: Permission to flame trail
+  empires.arrows.water:
+      description: Permission to water trail
+  empires.arrows.chief:
+      description: Permission to chief trail
+  empires.arrows.commander:
+      description: Permission to commander trail
+  empires.arrows.general:
+      description: Permission to general trail
+  empires.arrows.emperor:
+      description: Permission to emperor trail
 
 commands:
   empire:
     description: Used for empire commands
     usage: /<command>
     permission: Empires.empires
-  setspawn:
-    description: Used to set empire spawn.
+  reloadconfig:
+    description: Used for reloading config
     usage: /<command>
-    permission: Empires.setSpawn
+    permission: Empires.reloadconfig
+  empirejoin:
+    description: Used for empire commands
+    usage: /empire join <empire>
+    permission: Empires.join
+  empiretp:
+    description: Tp to different worlds
+    usage: /<command>
+    permission: empires.empirestp
+
+  help:
+    description: Use /help
+    usage: /<command>
+    permission: empires.help
 
   setcapture:
     description: Set capture zone for empire.
@@ -81,6 +121,25 @@ commands:
     usage: /<command>
     permission: Empires.blockowner
 
+  setcolors:
+    description: Set colors for empires
+    usage: /<command>
+    permission: Empires.setcolors
+
+  resetgame:
+    description: Reset game
+    usage: /<command>
+    permission: Empires.resetgame
+  cannon:
+    description: Get Cannon
+    usage: /<command>
+    permission: empires.cannon
+
+  gate:
+    description: Gate commands
+    usage: /<command>
+    permission: empires.gate
+
   empirechat:
     description: Enable and disable empire chat.
     usage: /<command>
@@ -113,3 +172,27 @@ commands:
   markerlist:
     description: Shows marker list
     usage: /<command>
+  map:
+    description: Sends link to map
+    usage: /<command>
+  list:
+    description: List of players online
+    usage: /<command>
+
+  createnpc:
+    description: Create NPC
+    usage: /<command>
+    permission: empires.createnpc
+
+  npcs:
+    description: Testing to see if the NPCs exist
+    usage: /<command>
+    permission: empires.npcs
+  npcslayer:
+    description: Gives npc slayer item
+    usage: /<command>
+    permission: empires.npcslayer
+  pregame:
+    description: Start pre-game
+    usage: /<command>
+    permission: empires.pregame
